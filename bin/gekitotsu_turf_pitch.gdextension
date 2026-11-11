@@ -1,0 +1,11 @@
+[configuration]
+entry_symbol = "gekitotsu_turf_pitch_library_init"
+compatibility_minimum = "4.1"
+
+[libraries]
+windows.debug.x86_64 = "res://bin/libgekitotsu.windows.debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/libgekitotsu.windows.release.x86_64.dll"
+macos.debug = "res://bin/libgekitotsu.macos.debug.universal.dylib"
+macos.release = "res://bin/libgekitotsu.macos.release.universal.dylib"
+linux.debug.x86_64 = "res://bin/libgekitotsu.linux.debug.x86_64.so"
+linux.release.x86_64 = "res://bin/libgekitotsu.linux.release.x86_64.so"
