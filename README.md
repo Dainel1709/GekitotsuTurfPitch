@@ -1,4 +1,4 @@
-# G.T.P. – Gekitotsu Pitch
+# G.T.P. – Gekitotsu Turf Pitch
 > *"Impacto en la cancha / Impacto en el terreno: ¿Hasta dónde llegarías cuando el balón ya no es suficiente?"*
 
 [![Godot Engine](https://img.shields.io/badge/Motor-Godot-blue?logo=godot-engine)](https://godotengine.org/)
@@ -8,16 +8,16 @@
 ---
 
 ## 📌 Resumen del Proyecto y Enfoque de Evaluación
-**G.T.P. – Gekitotsu Pitch** es un **RPG Deportivo** de acción y simulación narrativa que explora la constante tensión entre la disciplina de la élite futbolística y la cruda supervivencia del entorno urbano. 
+**G.T.P. – Gekitotsu Turf Pitch** es un **RPG Deportivo** de acción y simulación narrativa que explora la constante tensión entre la disciplina de la élite futbolística y la cruda supervivencia del entorno urbano. 
 
-Este proyecto ha sido diseñado estratégicamente para ser evaluado bajo estrictos criterios de **diseño de jugabilidad, arquitectura modular y eficiencia técnica**:
-* **Diseño e Interfaz Ágil:** Se emplea **Godot** para gestionar la interfaz de usuario (UI), menús, transiciones de escenas y el flujo diario del protagonista.
-* **Alto Rendimiento en C++:** Para evitar cuellos de botella y garantizar una jugabilidad fluida y precisa, los núcleos pesados del sistema (como el motor de físicas arcade de los vehículos y la detección de colisiones/hitboxes en los combates) están implementados en **C++** mediante **GDExtension**.
+Este proyecto ha sido diseñado estratégicamente bajo estrictos criterios de **diseño de jugabilidad, arquitectura modular y eficiencia técnica**:
+* **Diseño e Interfaz Ágil:** Se emplea **Godot** como soporte ágil de desarrollo para gestionar nodos, escenas, transiciones y la interfaz de usuario (UI).
+* **Alto Rendimiento en C++:** Para cumplir con los más altos estándares de rendimiento y evitar cuellos de botella, los núcleos críticos del sistema (como el motor de físicas arcade de los vehículos y la gestión de colisiones/hitboxes en los combates) están implementados estrictamente en **C++** mediante **GDExtension**.
 
 ---
 
 ## 🕹️ Estilo de Juego y Ciclo Diario
-El flujo de juego sigue una estructura de calendario diario con gestión de tiempo y energía (inspirada en la toma de decisiones de títulos como *Persona* y la progresión de carrera de *New Star Soccer*). Cada jornada se divide en dos bloques:
+El flujo de juego sigue una estructura de calendario diario con gestión de tiempo y energía (inspirada en la toma de decisiones de títulos como *Persona* y la progresión de carrera de *New Star Soccer*). Cada jornada se divide en dos bloques clave:
 1. **El Día (El Club Deportivo):** Entrenamientos y partidos oficiales en la liga juvenil para demostrar la valía deportiva.
 2. **La Noche (El Asfalto y la Calle):** Decisiones de tiempo libre y supervivencia urbana que impactan directamente el estado físico, la reputación y las estadísticas del protagonista.
 
@@ -36,17 +36,24 @@ La experiencia de juego se articula en tres pilares mecánicos principales con r
 
 ---
 
-## 🛠️ Stack Tecnológico y Arquitectura
+## 🛠️ Stack Tecnológico
 * **Motor Base:** Godot Engine (para nodos, escenas y gestión de UI mediante GDScript).
 * **Núcleo de Optimización:** C++ / GDExtension (para lógica de rendimiento crítico, físicas arcade y persistencia de datos globales).
-* **Gestión de Estado (Autoload):** Script global centralizado que rastrea las estadísticas internas del jugador (*Disciplina Deportiva, Técnica de Combate y Reputación en el Asfalto*) para determinar de forma totalmente orgánica uno de los **finales sorpresa** al cumplir los 18 años.
+* **Gestión de Estado (Autoload):** Sistema global centralizado que rastrea las estadísticas internas del jugador (*Disciplina Deportiva, Técnica de Combate y Reputación en el Asfalto*) para determinar de forma orgánica uno de los **finales sorpresa** al cumplir los 18 años.
+
+---
+
+## 🎨 Diseño y Modelado (DeSiGNAR)
+Para la etapa de diseño conceptual, estructuración de mecánicas y modelado de la arquitectura del sistema se utilizó **[DeSiGNAR](https://r3mmurd.github.io/DeSiGNAR)** como herramienta externa de apoyo. 
+* *Nota de repositorio:* DeSiGNAR se emplea únicamente como plataforma de diseño web externa, por lo que su código fuente no se encuentra alojado ni clonado dentro de este repositorio, manteniendo el proyecto enfocado exclusivamente en el código fuente en C++ y las escenas de Godot.
 
 ---
 
 ## 📂 Estructura del Repositorio
 ```text
 📦 Gekitotsu-Turf-Pitch
- ┣ 📂 bin / src          # Módulos de lógica pesada y optimización en C++ (GDExtension)
- ┣ 📂 res://scenes       # Escenas de Godot (Cancha, Callejón, Pista de Carreras, Menús)
- ┣ 📂 res://scripts      # Controladores de UI, diálogos y flujos en GDScript
- ┗ 📄 README.md          # Documentación oficial del proyecto
+ ┣ 📂 bin/              # Compilados de GDExtension (.dll, .so, .dylib y archivos .gdextension)
+ ┣ 📂 src/              # Código fuente en C++ (Físicas, lógica de combate y vehículos)
+ ┣ 📂 res://scenes      # Escenas de Godot (Cancha, Callejón, Pista de Carreras, Menús)
+ ┣ 📂 res://scripts     # Controladores de UI y flujos en GDScript
+ ┗ 📄 README.md         # Documentación oficial del proyecto
