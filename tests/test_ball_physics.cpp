@@ -52,6 +52,29 @@ int main() {
     assert(player.get_stamina() == 80.0f);
     std::cout << "  -> Drenaje de estamina de jugador: stamina=" << player.get_stamina() << " OK" << std::endl;
 
+    // 7. Prueba de cálculo de fuerza de patada (C++ Backend)
+    float quick_tap_force = player.calculate_kick_force_magnitude(0.0f);
+    float full_charge_force = player.calculate_kick_force_magnitude(1.0f);
+    assert(quick_tap_force == 16.0f);
+    assert(full_charge_force == 28.0f);
+    assert(full_charge_force > quick_tap_force);
+    std::cout << "  -> Fuerza de disparo: toque=" << quick_tap_force << ", carga max=" << full_charge_force << " OK" << std::endl;
+
+    // 8. Prueba de fatiga física en el disparo (estamina baja)
+    player.set_stamina(10.0f); // Estamina crítica
+    float fatigued_force = player.calculate_kick_force_magnitude(1.0f);
+    assert(fatigued_force < full_charge_force);
+    std::cout << "  -> Penalizacion por fatiga: fuerza=" << fatigued_force << " (< " << full_charge_force << ") OK" << std::endl;
+
+    // 9. Prueba de vector de patada y acotación vertical en Y
+    float k_vx, k_vy, k_vz;
+    player.set_stamina(100.0f);
+    player.calculate_kick_vector(1.0f, 0.0f, 1.0f, k_vx, k_vy, k_vz);
+    assert(k_vx == 28.0f);
+    assert(k_vz == 0.0f);
+    assert(k_vy <= 1.6f); // Límite de rebote alto en Y
+    std::cout << "  -> Vector 3D patada arcade: vx=" << k_vx << ", vy_elev=" << k_vy << " (limitado en Y) OK" << std::endl;
+
     std::cout << "TODOS LOS TESTS PASARON EXITOSAMENTE." << std::endl;
     return 0;
 }

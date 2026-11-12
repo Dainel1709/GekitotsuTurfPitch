@@ -1,7 +1,7 @@
-[gd_scene load_steps=19 format=2]
+[gd_scene load_steps=20 format=2]
 
 [ext_resource path="res://scripts/Player.gd" type="Script" id=1]
-[ext_resource path="res://scenes/Ball.tscn" type="PackedScene" id=2]
+[ext_resource path="res://scenes/FootballBall.tscn" type="PackedScene" id=2]
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 40, 25 )
@@ -64,6 +64,9 @@ roughness = 0.4
 [sub_resource type="CapsuleShape" id=17]
 radius = 0.4
 height = 0.8
+
+[sub_resource type="SphereShape" id=18]
+radius = 1.35
 
 [node name="FootballPitch" type="Spatial"]
 
@@ -207,7 +210,7 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 20.0, 2.0, 0 )
 mesh = SubResource( 14 )
 material/0 = SubResource( 12 )
 
-[node name="Ball" parent="." instance=ExtResource( 2 )]
+[node name="FootballBall" parent="." instance=ExtResource( 2 )]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0 )
 
 [node name="Player" type="KinematicBody" parent="."]
@@ -222,3 +225,11 @@ material/0 = SubResource( 16 )
 [node name="CollisionShape" type="CollisionShape" parent="Player"]
 transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
 shape = SubResource( 17 )
+
+[node name="KickArea" type="Area" parent="Player"]
+collision_layer = 0
+collision_mask = 2
+
+[node name="AreaCollisionShape" type="CollisionShape" parent="Player/KickArea"]
+shape = SubResource( 18 )
+
