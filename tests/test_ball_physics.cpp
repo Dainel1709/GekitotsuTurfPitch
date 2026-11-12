@@ -75,6 +75,32 @@ int main() {
     assert(k_vy <= 1.6f); // Límite de rebote alto en Y
     std::cout << "  -> Vector 3D patada arcade: vx=" << k_vx << ", vy_elev=" << k_vy << " (limitado en Y) OK" << std::endl;
 
+    // 10. Prueba del sistema de marcador y goles (C++ Backend)
+    assert(player.get_player_score() == 0);
+    assert(player.get_opponent_score() == 0);
+    player.score_goal_player();
+    assert(player.get_player_score() == 1);
+    assert(player.get_opponent_score() == 0);
+    player.score_goal_player();
+    player.score_goal_opponent();
+    assert(player.get_player_score() == 2);
+    assert(player.get_opponent_score() == 1);
+    player.reset_score();
+    assert(player.get_player_score() == 0);
+    assert(player.get_opponent_score() == 0);
+
+    godot::FootballMechanics mechanics;
+    assert(mechanics.get_player_score() == 0);
+    mechanics.score_goal_player();
+    mechanics.score_goal_player();
+    mechanics.score_goal_opponent();
+    assert(mechanics.get_player_score() == 2);
+    assert(mechanics.get_opponent_score() == 1);
+    mechanics.reset_score();
+    assert(mechanics.get_player_score() == 0);
+    assert(mechanics.get_opponent_score() == 0);
+    std::cout << "  -> Marcador de partido (C++ score_goal_player / score_goal_opponent / reset): OK" << std::endl;
+
     std::cout << "TODOS LOS TESTS PASARON EXITOSAMENTE." << std::endl;
     return 0;
 }

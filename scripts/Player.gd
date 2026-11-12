@@ -15,7 +15,7 @@ export var charge_speed: float = 2.4 # Carga completa en ~0.42 segundos
 # Estado de Disparo y Balón
 var shot_charge: float = 0.0
 var is_charging: bool = false
-var facing_direction: Vector3 = Vector3(1.0, 0.0, 0.0)
+var facing_direction: Vector3 = Vector3(0.0, 0.0, -1.0) # Orientado hacia la portería rival (Z negativo)
 var ball_ref: RigidBody = null
 var is_colliding_with_ball: bool = false
 var is_ball_in_kick_area: bool = false

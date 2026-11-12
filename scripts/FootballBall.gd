@@ -7,6 +7,9 @@ export var max_vertical_velocity: float = 1.8   # Limita los rebotes excesivos e
 export var max_height: float = 2.2              # Altura máxima permitida
 export var grass_rolling_damp: float = 1.2      # Desaceleración en césped
 
+var _needs_reset: bool = false
+var _reset_position: Vector3 = Vector3(0.0, 0.25, 0.0)
+
 onready var shadow_node: Spatial = $Shadow
 onready var mesh_node: MeshInstance = $BallMesh
 
@@ -18,6 +21,16 @@ func _ready() -> void:
 	contacts_reported = 4
 
 func _integrate_forces(state: PhysicsDirectBodyState) -> void:
+	# 0. Si se solicita reinicio forzado (ej: tras anotación de gol)
+	if _needs_reset:
+		_needs_reset = false
+		var t = state.transform
+		t.origin = _reset_position
+		state.transform = t
+		state.linear_velocity = Vector3.ZERO
+		state.angular_velocity = Vector3.ZERO
+		return
+
 	# 1. Limitar la velocidad vertical en Y para mantener el juego arcade y responsivo en X/Z
 	if state.linear_velocity.y > max_vertical_velocity:
 		state.linear_velocity.y = max_vertical_velocity
@@ -62,3 +75,5 @@ func reset_ball(pos: Vector3 = Vector3(0.0, 0.25, 0.0)) -> void:
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	translation = pos
+	_needs_reset = true
+	_reset_position = pos

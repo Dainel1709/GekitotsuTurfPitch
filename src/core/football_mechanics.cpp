@@ -30,12 +30,23 @@ void FootballMechanics::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_max_kick_force"), &FootballMechanics::get_max_kick_force);
     ClassDB::bind_method(D_METHOD("set_max_kick_force", "force"), &FootballMechanics::set_max_kick_force);
 
+    // Métodos para el sistema de marcador y goles
+    ClassDB::bind_method(D_METHOD("score_goal_player"), &FootballMechanics::score_goal_player);
+    ClassDB::bind_method(D_METHOD("score_goal_opponent"), &FootballMechanics::score_goal_opponent);
+    ClassDB::bind_method(D_METHOD("get_player_score"), &FootballMechanics::get_player_score);
+    ClassDB::bind_method(D_METHOD("set_player_score", "score"), &FootballMechanics::set_player_score);
+    ClassDB::bind_method(D_METHOD("get_opponent_score"), &FootballMechanics::get_opponent_score);
+    ClassDB::bind_method(D_METHOD("set_opponent_score", "score"), &FootballMechanics::set_opponent_score);
+    ClassDB::bind_method(D_METHOD("reset_score"), &FootballMechanics::reset_score);
+
     // Propiedades expuestas al Inspector de Godot
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "base_speed"), "set_base_speed", "get_base_speed");
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "stamina"), "set_stamina", "get_stamina");
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "max_stamina"), "set_max_stamina", "get_max_stamina");
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "base_kick_force"), "set_base_kick_force", "get_base_kick_force");
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "max_kick_force"), "set_max_kick_force", "get_max_kick_force");
+    ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::INT, "player_score"), "set_player_score", "get_player_score");
+    ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::INT, "opponent_score"), "set_opponent_score", "get_opponent_score");
 }
 
 void FootballMechanics::update_stamina(double delta) {
@@ -115,6 +126,34 @@ double FootballMechanics::get_max_kick_force() const {
 
 void FootballMechanics::set_max_kick_force(double force) {
     physics.set_max_kick_force(static_cast<float>(force));
+}
+
+void FootballMechanics::score_goal_player() {
+    physics.score_goal_player();
+}
+
+void FootballMechanics::score_goal_opponent() {
+    physics.score_goal_opponent();
+}
+
+int FootballMechanics::get_player_score() const {
+    return physics.get_player_score();
+}
+
+void FootballMechanics::set_player_score(int score) {
+    physics.set_player_score(score);
+}
+
+int FootballMechanics::get_opponent_score() const {
+    return physics.get_opponent_score();
+}
+
+void FootballMechanics::set_opponent_score(int score) {
+    physics.set_opponent_score(score);
+}
+
+void FootballMechanics::reset_score() {
+    physics.reset_score();
 }
 
 } // namespace godot

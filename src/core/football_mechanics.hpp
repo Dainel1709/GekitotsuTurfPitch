@@ -26,6 +26,10 @@ private:
     float max_kick_force = 28.0f;           // Fuerza máxima con carga completa
     float kick_stamina_cost = 8.0f;         // Coste base de estamina por patear
 
+    // Marcador de partido / Puntuación
+    int player_score = 0;                   // Goles a favor (jugador)
+    int opponent_score = 0;                 // Goles en contra (rival)
+
 public:
     FootballPlayerPhysics() = default;
 
@@ -124,6 +128,36 @@ public:
 
     [[nodiscard]] float get_kick_stamina_cost() const noexcept { return kick_stamina_cost; }
     void set_kick_stamina_cost(float cost) noexcept { kick_stamina_cost = std::max(0.0f, cost); }
+
+    // --- Métodos de Puntuación y Marcador ---
+    void score_goal_player() noexcept {
+        ++player_score;
+    }
+
+    void score_goal_opponent() noexcept {
+        ++opponent_score;
+    }
+
+    [[nodiscard]] int get_player_score() const noexcept {
+        return player_score;
+    }
+
+    void set_player_score(int score) noexcept {
+        player_score = std::max(0, score);
+    }
+
+    [[nodiscard]] int get_opponent_score() const noexcept {
+        return opponent_score;
+    }
+
+    void set_opponent_score(int score) noexcept {
+        opponent_score = std::max(0, score);
+    }
+
+    void reset_score() noexcept {
+        player_score = 0;
+        opponent_score = 0;
+    }
 };
 
 } // namespace gtp
@@ -172,6 +206,15 @@ public:
     void set_base_kick_force(double force);
     double get_max_kick_force() const;
     void set_max_kick_force(double force);
+
+    // Métodos de puntuación y marcador
+    void score_goal_player();
+    void score_goal_opponent();
+    int get_player_score() const;
+    void set_player_score(int score);
+    int get_opponent_score() const;
+    void set_opponent_score(int score);
+    void reset_score();
 };
 
 } // namespace godot
@@ -275,6 +318,35 @@ public:
 
     void set_max_kick_force(double force) {
         physics.set_max_kick_force(static_cast<float>(force));
+    }
+
+    // Métodos de puntuación y marcador (Standalone)
+    void score_goal_player() {
+        physics.score_goal_player();
+    }
+
+    void score_goal_opponent() {
+        physics.score_goal_opponent();
+    }
+
+    [[nodiscard]] int get_player_score() const {
+        return physics.get_player_score();
+    }
+
+    void set_player_score(int score) {
+        physics.set_player_score(score);
+    }
+
+    [[nodiscard]] int get_opponent_score() const {
+        return physics.get_opponent_score();
+    }
+
+    void set_opponent_score(int score) {
+        physics.set_opponent_score(score);
+    }
+
+    void reset_score() {
+        physics.reset_score();
     }
 };
 
