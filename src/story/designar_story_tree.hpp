@@ -54,10 +54,15 @@ class DeSiGNARStoryTree {
 public:
     using Node = Designar::DecisionTreeNode<NarrativeDilemma>;
 
+    static PlayerStats& get_global_stats() {
+        static PlayerStats global_stats{0, 0, 0, 100, 0, 1};
+        return global_stats;
+    }
+
 private:
     Node* root = nullptr;
     Node* current = nullptr;
-    PlayerStats stats;
+    PlayerStats& stats;
 
     void free_subtree(Node* node) {
         if (!node) return;
@@ -67,7 +72,7 @@ private:
     }
 
 public:
-    DeSiGNARStoryTree() {
+    DeSiGNARStoryTree() : stats(get_global_stats()) {
         build_default_career_tree();
     }
 
@@ -200,6 +205,30 @@ public:
     [[nodiscard]] bool is_career_over() const noexcept {
         return current != nullptr && current->is_leaf();
     }
+
+    /**
+     * @brief Aplica las recompensas e impacto estadístico de un partido de fútbol en las estadísticas del canterano.
+     */
+    void apply_match_result(int player_goals, int opponent_goals) {
+        if (player_goals > opponent_goals) {
+            stats.sports_discipline += 15;
+            stats.combat_technique += 5;
+            stats.money += 250;
+        } else if (player_goals == opponent_goals) {
+            stats.sports_discipline += 5;
+            stats.money += 50;
+        } else {
+            stats.street_reputation += 10;
+            stats.combat_technique += 5;
+            stats.money += 50;
+        }
+        stats.current_day++;
+    }
+
+    void add_sports_discipline(int amount) noexcept { stats.sports_discipline += amount; }
+    void add_street_reputation(int amount) noexcept { stats.street_reputation += amount; }
+    void add_combat_technique(int amount) noexcept { stats.combat_technique += amount; }
+    void add_money(int amount) noexcept { stats.money += amount; }
 };
 
 } // namespace gtp

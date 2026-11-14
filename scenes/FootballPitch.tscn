@@ -1,8 +1,9 @@
-[gd_scene load_steps=22 format=2]
+[gd_scene load_steps=23 format=2]
 
 [ext_resource path="res://scripts/Player.gd" type="Script" id=1]
 [ext_resource path="res://scenes/FootballBall.tscn" type="PackedScene" id=2]
 [ext_resource path="res://scripts/GoalArea.gd" type="Script" id=3]
+[ext_resource path="res://scripts/PitchHUD.gd" type="Script" id=4]
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 40, 25 )
@@ -217,3 +218,54 @@ collision_mask = 2
 
 [node name="AreaCollisionShape" type="CollisionShape" parent="Player/KickArea"]
 shape = SubResource( 17 )
+
+[node name="PitchHUD" type="CanvasLayer" parent="."]
+script = ExtResource( 4 )
+
+[node name="HUDControl" type="Control" parent="PitchHUD"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="ScorePanel" type="PanelContainer" parent="PitchHUD/HUDControl"]
+anchor_left = 0.5
+anchor_right = 0.5
+margin_left = -220.0
+margin_top = 18.0
+margin_right = 220.0
+margin_bottom = 78.0
+
+[node name="ScoreLabel" type="Label" parent="PitchHUD/HUDControl/ScorePanel"]
+margin_left = 7.0
+margin_top = 13.0
+margin_right = 433.0
+margin_bottom = 47.0
+text = "MARCADOR: JUGADOR  [ 0 ]  -  [ 0 ]  RIVAL
+(Primero a 3 Goles)"
+align = 1
+valign = 1
+
+[node name="GoalNoticeLabel" type="Label" parent="PitchHUD/HUDControl"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.38
+anchor_right = 0.5
+anchor_bottom = 0.38
+margin_left = -350.0
+margin_top = -40.0
+margin_right = 350.0
+margin_bottom = 40.0
+rect_scale = Vector2( 1.2, 1.2 )
+rect_pivot_offset = Vector2( 350, 40 )
+text = "¡¡¡GOOOOL!!!"
+align = 1
+valign = 1
+
+[node name="ControlsHint" type="Label" parent="PitchHUD/HUDControl"]
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_top = -42.0
+text = "WASD / Flechas: Moverse | Shift: Sprint | Z / J: Pase Corto (Suave) | Espacio / K: Disparo Fuerte a Puerta"
+align = 1
+valign = 1

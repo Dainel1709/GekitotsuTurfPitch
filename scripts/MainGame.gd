@@ -3,15 +3,18 @@ extends Control
 onready var description_label = $VBoxContainer/DescriptionLabel
 onready var left_button = $VBoxContainer/LeftButton
 onready var right_button = $VBoxContainer/RightButton
-onready var stats_label = $StatsLabel
+onready var stats_label = $VBoxContainer/StatsLabel
+onready var match_button = $VBoxContainer/MatchButton
 
 var story_manager = null
 
 func _ready() -> void:
 	left_button.connect("pressed", self, "_on_left_choice_pressed")
 	right_button.connect("pressed", self, "_on_right_choice_pressed")
+	if match_button:
+		match_button.connect("pressed", self, "_on_match_pressed")
 	
-	# Enlace dinámico con la clase C++ GekitotsuStoryManager expuesta por GDExtension
+	# Enlace dinámico con la clase C++ GekitotsuStoryManager expuesta por GDExtension / GDNative
 	if ClassDB.class_exists("GekitotsuStoryManager"):
 		if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
 			story_manager = ClassDB.instantiate("GekitotsuStoryManager")
@@ -25,35 +28,74 @@ func _ready() -> void:
 
 func update_ui() -> void:
 	if story_manager:
-		# Métodos clave expuestos desde DeSiGNARStoryTree en C++:
-		var title: String = story_manager.get_current_title()
-		var prompt: String = story_manager.get_current_prompt()
-		var discipline: int = story_manager.get_discipline_points()
-		var reputation: int = story_manager.get_street_reputation()
-		var is_over: bool = story_manager.is_career_over()
+		var title: String = story_manager.get_current_title() if story_manager.has_method("get_current_title") else ""
+		var prompt: String = story_manager.get_current_prompt() if story_manager.has_method("get_current_prompt") else ""
+		var discipline: int = story_manager.get_discipline_points() if story_manager.has_method("get_discipline_points") else 0
+		var combat: int = story_manager.get_combat_technique() if story_manager.has_method("get_combat_technique") else 0
+		var money: int = story_manager.get_money() if story_manager.has_method("get_money") else 0
+		var reputation: int = story_manager.get_street_reputation() if story_manager.has_method("get_street_reputation") else 0
+		var is_over: bool = story_manager.is_career_over() if story_manager.has_method("is_career_over") else false
 
-		description_label.text = "[%s]\n%s" % [title, prompt]
-		stats_label.text = "Disciplina Deportiva: %d | Reputación en Asfalto: %d" % [discipline, reputation]
+		description_label.text = "[%s]\n\n%s" % [title, prompt]
+		stats_label.text = "Disciplina Deportiva: %d | Combate: %d | Dinero: $%d | Reputación en Asfalto: %d" % [discipline, combat, money, reputation]
 
 		if is_over:
 			left_button.visible = false
 			right_button.visible = false
-			description_label.text += "\n\n*** ¡FIN DE LA CARRERA / DESENLACE A LOS 18 AÑOS ALCANZADO! ***"
+			var ending: String = story_manager.get_ending_summary() if story_manager.has_method("get_ending_summary") else ""
+			description_label.text += "\n\n*** ¡FIN DE LA CARRERA / DESENLACE A LOS 18 AÑOS ALCANZADO! ***\n" + ending
 		else:
-			left_button.text = "Elegir Club / Disciplina (+Disciplina Deportiva)"
-			right_button.text = "Elegir Calle / Asfalto (+Reputación Callejera)"
+			left_button.visible = true
+			right_button.visible = true
+			var left_text: String = story_manager.get_discipline_option_text() if story_manager.has_method("get_discipline_option_text") else ""
+			var right_text: String = story_manager.get_street_option_text() if story_manager.has_method("get_street_option_text") else ""
+			left_button.text = left_text if left_text != "" else "Elegir Club / Disciplina (+Disciplina Deportiva)"
+			right_button.text = right_text if right_text != "" else "Elegir Calle / Asfalto (+Reputación Callejera)"
 	else:
-		description_label.text = "La Encrucijada de la Cantera:\n¿Entrenamiento profesional o carreras clandestinas?"
-		left_button.text = "Quedarse a entrenar (+Disciplina)"
-		right_button.text = "Asistir a la carrera (+Reputación)"
-		stats_label.text = "Modo Demo UI (Esperando enlace nativo GDExtension)"
+		var meta_stats = _get_persistent_stats()
+		var d = meta_stats.get("discipline", 0)
+		var c = meta_stats.get("combat", 0)
+		var m = meta_stats.get("money", 0)
+		var r = meta_stats.get("reputation", 0)
+		
+		description_label.text = "[La Encrucijada de la Cantera]\n\nHas sido admitido en las pruebas del club juvenil, pero esta noche hay una carrera clandestina que paga el alquiler familiar. ¿Qué camino eliges?"
+		left_button.text = "Quedarse a entrenar (+15 Disciplina, -5 Dinero)"
+		right_button.text = "Asistir a la carrera clandestina (+20 Reputación, +$500 Dinero, +5 Combate)"
+		stats_label.text = "Disciplina Deportiva: %d | Combate: %d | Dinero: $%d | Reputación en Asfalto: %d" % [d, c, m, r]
+
+func _get_persistent_stats() -> Dictionary:
+	if not get_tree().root.has_meta("gtp_stats"):
+		get_tree().root.set_meta("gtp_stats", {
+			"discipline": 0,
+			"combat": 0,
+			"money": 0,
+			"reputation": 0,
+			"day": 1
+		})
+	return get_tree().root.get_meta("gtp_stats")
 
 func _on_left_choice_pressed() -> void:
-	if story_manager:
+	if story_manager and story_manager.has_method("choose_discipline"):
 		story_manager.choose_discipline()
+	else:
+		var s = _get_persistent_stats()
+		s["discipline"] += 15
+		s["money"] -= 5
+		s["day"] += 1
+		get_tree().root.set_meta("gtp_stats", s)
 	update_ui()
 
 func _on_right_choice_pressed() -> void:
-	if story_manager:
+	if story_manager and story_manager.has_method("choose_street"):
 		story_manager.choose_street()
+	else:
+		var s = _get_persistent_stats()
+		s["reputation"] += 20
+		s["money"] += 500
+		s["combat"] += 5
+		s["day"] += 1
+		get_tree().root.set_meta("gtp_stats", s)
 	update_ui()
+
+func _on_match_pressed() -> void:
+	get_tree().change_scene("res://scenes/FootballPitch.tscn")

@@ -24,11 +24,14 @@ void FootballMechanics::_bind_methods() {
 
     // Métodos para cálculo de fuerza y vector de disparo / patada
     ClassDB::bind_method(D_METHOD("calculate_kick_force", "dir_x", "dir_z", "charge_ratio"), &FootballMechanics::calculate_kick_force, DEFVAL(1.0));
+    ClassDB::bind_method(D_METHOD("calculate_pass_force", "dir_x", "dir_z"), &FootballMechanics::calculate_pass_force);
     ClassDB::bind_method(D_METHOD("calculate_kick_force_magnitude", "charge_ratio"), &FootballMechanics::calculate_kick_force_magnitude, DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("get_base_kick_force"), &FootballMechanics::get_base_kick_force);
     ClassDB::bind_method(D_METHOD("set_base_kick_force", "force"), &FootballMechanics::set_base_kick_force);
     ClassDB::bind_method(D_METHOD("get_max_kick_force"), &FootballMechanics::get_max_kick_force);
     ClassDB::bind_method(D_METHOD("set_max_kick_force", "force"), &FootballMechanics::set_max_kick_force);
+    ClassDB::bind_method(D_METHOD("get_short_pass_force"), &FootballMechanics::get_short_pass_force);
+    ClassDB::bind_method(D_METHOD("set_short_pass_force", "force"), &FootballMechanics::set_short_pass_force);
 
     // Métodos para el sistema de marcador y goles
     ClassDB::bind_method(D_METHOD("score_goal_player"), &FootballMechanics::score_goal_player);
@@ -38,6 +41,7 @@ void FootballMechanics::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_opponent_score"), &FootballMechanics::get_opponent_score);
     ClassDB::bind_method(D_METHOD("set_opponent_score", "score"), &FootballMechanics::set_opponent_score);
     ClassDB::bind_method(D_METHOD("reset_score"), &FootballMechanics::reset_score);
+    ClassDB::bind_method(D_METHOD("apply_match_result", "player_score", "opponent_score"), &FootballMechanics::apply_match_result);
 
     // Propiedades expuestas al Inspector de Godot
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "base_speed"), "set_base_speed", "get_base_speed");
@@ -126,6 +130,24 @@ double FootballMechanics::get_max_kick_force() const {
 
 void FootballMechanics::set_max_kick_force(double force) {
     physics.set_max_kick_force(static_cast<float>(force));
+}
+
+Vector3 FootballMechanics::calculate_pass_force(double dir_x, double dir_z) {
+    float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+    physics.calculate_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
+    return Vector3(static_cast<real_t>(vx), static_cast<real_t>(vy), static_cast<real_t>(vz));
+}
+
+double FootballMechanics::get_short_pass_force() const {
+    return static_cast<double>(physics.get_short_pass_force());
+}
+
+void FootballMechanics::set_short_pass_force(double force) {
+    physics.set_short_pass_force(static_cast<float>(force));
+}
+
+void FootballMechanics::apply_match_result(int player_score, int opponent_score) {
+    physics.apply_match_result(player_score, opponent_score);
 }
 
 void FootballMechanics::score_goal_player() {

@@ -18,14 +18,22 @@ private:
 
 protected:
     static void _bind_methods() {
-        // Enlace de los 7 métodos clave hacia el motor Godot y GDScript
+        // Enlace de métodos hacia el motor Godot y GDScript
         ClassDB::bind_method(D_METHOD("get_current_title"), &GekitotsuStoryManager::get_current_title);
         ClassDB::bind_method(D_METHOD("get_current_prompt"), &GekitotsuStoryManager::get_current_prompt);
+        ClassDB::bind_method(D_METHOD("get_discipline_option_text"), &GekitotsuStoryManager::get_discipline_option_text);
+        ClassDB::bind_method(D_METHOD("get_street_option_text"), &GekitotsuStoryManager::get_street_option_text);
+        ClassDB::bind_method(D_METHOD("get_ending_summary"), &GekitotsuStoryManager::get_ending_summary);
         ClassDB::bind_method(D_METHOD("choose_discipline"), &GekitotsuStoryManager::choose_discipline);
         ClassDB::bind_method(D_METHOD("choose_street"), &GekitotsuStoryManager::choose_street);
         ClassDB::bind_method(D_METHOD("get_discipline_points"), &GekitotsuStoryManager::get_discipline_points);
         ClassDB::bind_method(D_METHOD("get_street_reputation"), &GekitotsuStoryManager::get_street_reputation);
+        ClassDB::bind_method(D_METHOD("get_combat_technique"), &GekitotsuStoryManager::get_combat_technique);
+        ClassDB::bind_method(D_METHOD("get_money"), &GekitotsuStoryManager::get_money);
+        ClassDB::bind_method(D_METHOD("get_energy"), &GekitotsuStoryManager::get_energy);
+        ClassDB::bind_method(D_METHOD("get_current_day"), &GekitotsuStoryManager::get_current_day);
         ClassDB::bind_method(D_METHOD("is_career_over"), &GekitotsuStoryManager::is_career_over);
+        ClassDB::bind_method(D_METHOD("apply_match_result", "player_goals", "opponent_goals"), &GekitotsuStoryManager::apply_match_result);
     }
 
 public:
@@ -40,6 +48,18 @@ public:
     // --- 2. get_current_prompt ---
     String get_current_prompt() const {
         return String(controller.get_current_prompt().c_str());
+    }
+
+    String get_discipline_option_text() const {
+        return String(controller.get_discipline_option_text().c_str());
+    }
+
+    String get_street_option_text() const {
+        return String(controller.get_street_option_text().c_str());
+    }
+
+    String get_ending_summary() const {
+        return String(controller.get_ending_summary().c_str());
     }
 
     // --- 3. choose_discipline ---
@@ -62,9 +82,29 @@ public:
         return controller.get_street_reputation();
     }
 
+    int get_combat_technique() const {
+        return controller.get_combat_technique();
+    }
+
+    int get_money() const {
+        return controller.get_money();
+    }
+
+    int get_energy() const {
+        return controller.get_energy();
+    }
+
+    int get_current_day() const {
+        return controller.get_current_day();
+    }
+
     // --- 7. is_career_over ---
     bool is_career_over() const {
         return controller.is_career_over();
+    }
+
+    void apply_match_result(int player_goals, int opponent_goals) {
+        controller.apply_match_result(player_goals, opponent_goals);
     }
 };
 
@@ -92,6 +132,18 @@ public:
         return controller.get_current_prompt();
     }
 
+    std::string get_discipline_option_text() const {
+        return controller.get_discipline_option_text();
+    }
+
+    std::string get_street_option_text() const {
+        return controller.get_street_option_text();
+    }
+
+    std::string get_ending_summary() const {
+        return controller.get_ending_summary();
+    }
+
     // --- 3. choose_discipline ---
     bool choose_discipline() {
         return controller.choose_discipline();
@@ -112,9 +164,29 @@ public:
         return controller.get_street_reputation();
     }
 
+    int get_combat_technique() const {
+        return controller.get_combat_technique();
+    }
+
+    int get_money() const {
+        return controller.get_money();
+    }
+
+    int get_energy() const {
+        return controller.get_energy();
+    }
+
+    int get_current_day() const {
+        return controller.get_current_day();
+    }
+
     // --- 7. is_career_over ---
     bool is_career_over() const {
         return controller.is_career_over();
+    }
+
+    void apply_match_result(int player_goals, int opponent_goals) {
+        controller.apply_match_result(player_goals, opponent_goals);
     }
 };
 

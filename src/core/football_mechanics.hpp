@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include "../story/designar_story_tree.hpp"
 
 namespace gtp {
 
@@ -25,6 +26,8 @@ private:
     float base_kick_force = 16.0f;          // Fuerza base de patada / pase
     float max_kick_force = 28.0f;           // Fuerza máxima con carga completa
     float kick_stamina_cost = 8.0f;         // Coste base de estamina por patear
+    float short_pass_force = 9.0f;          // Fuerza suave para pase corto raso
+    float pass_stamina_cost = 4.0f;         // Menor consumo de estamina al pasar
 
     // Marcador de partido / Puntuación
     int player_score = 0;                   // Goles a favor (jugador)
@@ -129,6 +132,52 @@ public:
     [[nodiscard]] float get_kick_stamina_cost() const noexcept { return kick_stamina_cost; }
     void set_kick_stamina_cost(float cost) noexcept { kick_stamina_cost = std::max(0.0f, cost); }
 
+    [[nodiscard]] float get_short_pass_force() const noexcept { return short_pass_force; }
+    void set_short_pass_force(float force) noexcept { short_pass_force = std::max(1.0f, force); }
+
+    [[nodiscard]] float get_pass_stamina_cost() const noexcept { return pass_stamina_cost; }
+    void set_pass_stamina_cost(float cost) noexcept { pass_stamina_cost = std::max(0.0f, cost); }
+
+    /**
+     * @brief Calcula el vector de fuerza 3D para un pase corto suave y raso.
+     */
+    void calculate_pass_vector(float dir_x, float dir_z,
+                              float& out_vx, float& out_vy, float& out_vz) const noexcept {
+        float len = std::sqrt(dir_x * dir_x + dir_z * dir_z);
+        if (len > 0.0001f) {
+            dir_x /= len;
+            dir_z /= len;
+        } else {
+            dir_x = 0.0f;
+            dir_z = -1.0f;
+        }
+
+        float force = short_pass_force;
+        if (stamina < 30.0f) {
+            force *= (0.7f + 0.3f * (std::max(0.0f, stamina) / 30.0f));
+        }
+
+        out_vx = dir_x * force;
+        out_vz = dir_z * force;
+        out_vy = 0.1f; // A ras de cesped
+    }
+
+    void apply_match_result(int p_score, int opp_score) {
+        if (p_score > opp_score) {
+            DeSiGNARStoryTree::get_global_stats().sports_discipline += 15;
+            DeSiGNARStoryTree::get_global_stats().combat_technique += 5;
+            DeSiGNARStoryTree::get_global_stats().money += 250;
+        } else if (p_score == opp_score) {
+            DeSiGNARStoryTree::get_global_stats().sports_discipline += 5;
+            DeSiGNARStoryTree::get_global_stats().money += 50;
+        } else {
+            DeSiGNARStoryTree::get_global_stats().street_reputation += 10;
+            DeSiGNARStoryTree::get_global_stats().combat_technique += 5;
+            DeSiGNARStoryTree::get_global_stats().money += 50;
+        }
+        DeSiGNARStoryTree::get_global_stats().current_day++;
+    }
+
     // --- Métodos de Puntuación y Marcador ---
     void score_goal_player() noexcept {
         ++player_score;
@@ -201,11 +250,14 @@ public:
 
     // Nuevos métodos de disparo y pateo
     Vector3 calculate_kick_force(double dir_x, double dir_z, double charge_ratio = 1.0);
+    Vector3 calculate_pass_force(double dir_x, double dir_z);
     double calculate_kick_force_magnitude(double charge_ratio = 1.0) const;
     double get_base_kick_force() const;
     void set_base_kick_force(double force);
     double get_max_kick_force() const;
     void set_max_kick_force(double force);
+    double get_short_pass_force() const;
+    void set_short_pass_force(double force);
 
     // Métodos de puntuación y marcador
     void score_goal_player();
@@ -215,6 +267,7 @@ public:
     int get_opponent_score() const;
     void set_opponent_score(int score);
     void reset_score();
+    void apply_match_result(int player_score, int opponent_score);
 };
 
 } // namespace godot
@@ -300,6 +353,12 @@ public:
         return Vector3(static_cast<double>(vx), static_cast<double>(vy), static_cast<double>(vz));
     }
 
+    [[nodiscard]] Vector3 calculate_pass_force(double dir_x, double dir_z) const {
+        float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+        physics.calculate_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
+        return Vector3(static_cast<double>(vx), static_cast<double>(vy), static_cast<double>(vz));
+    }
+
     [[nodiscard]] double calculate_kick_force_magnitude(double charge_ratio = 1.0) const {
         return static_cast<double>(physics.calculate_kick_force_magnitude(static_cast<float>(charge_ratio)));
     }
@@ -318,6 +377,14 @@ public:
 
     void set_max_kick_force(double force) {
         physics.set_max_kick_force(static_cast<float>(force));
+    }
+
+    [[nodiscard]] double get_short_pass_force() const {
+        return static_cast<double>(physics.get_short_pass_force());
+    }
+
+    void set_short_pass_force(double force) {
+        physics.set_short_pass_force(static_cast<float>(force));
     }
 
     // Métodos de puntuación y marcador (Standalone)
@@ -347,6 +414,10 @@ public:
 
     void reset_score() {
         physics.reset_score();
+    }
+
+    void apply_match_result(int player_score, int opponent_score) {
+        physics.apply_match_result(player_score, opponent_score);
     }
 };
 

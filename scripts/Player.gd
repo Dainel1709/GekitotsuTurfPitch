@@ -8,6 +8,7 @@ var mechanics = null
 # Configuración de Disparo y Balón
 export var fallback_base_kick_force: float = 16.0
 export var fallback_max_kick_force: float = 28.0
+export var fallback_pass_force: float = 9.0
 export var kick_reach: float = 1.65
 export var dribble_distance: float = 1.2
 export var charge_speed: float = 2.4 # Carga completa en ~0.42 segundos
@@ -15,6 +16,7 @@ export var charge_speed: float = 2.4 # Carga completa en ~0.42 segundos
 # Estado de Disparo y Balón
 var shot_charge: float = 0.0
 var is_charging: bool = false
+var pass_is_pressed: bool = false
 var facing_direction: Vector3 = Vector3(0.0, 0.0, -1.0) # Orientado hacia la portería rival (Z negativo)
 var ball_ref: RigidBody = null
 var is_colliding_with_ball: bool = false
@@ -76,8 +78,8 @@ func _physics_process(delta: float) -> void:
 	if is_moving:
 		facing_direction = move_direction.normalized()
 
-	# 4. Gestión de Disparo / Pateo (Barra Espaciadora / ui_select)
-	_handle_shot_mechanic(delta)
+	# 4. Gestión de Pase Corto (Z/J) y Disparo Fuerte (Espacio/K)
+	_handle_pass_and_shot(delta)
 
 	# 5. Conexión con el backend de C++ para velocidad y drenaje de estamina
 	var current_speed: float = 0.0
@@ -150,8 +152,15 @@ func _resolve_ball_reference() -> void:
 				ball_ref = b
 				break
 
-func _handle_shot_mechanic(delta: float) -> void:
-	var shoot_pressed: bool = Input.is_key_pressed(KEY_SPACE) or Input.is_action_pressed("ui_select") or Input.is_action_pressed("ui_accept")
+func _handle_pass_and_shot(delta: float) -> void:
+	# 1. Detección de Pase Corto (Tecla Z o J - impulso suave)
+	var pass_pressed_now = Input.is_key_pressed(KEY_Z) or Input.is_key_pressed(KEY_J)
+	if pass_pressed_now and not pass_is_pressed:
+		_execute_pass()
+	pass_is_pressed = pass_pressed_now
+
+	# 2. Detección de Disparo Fuerte a Puerta (Barra Espaciadora o Tecla K)
+	var shoot_pressed: bool = Input.is_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_K) or Input.is_action_pressed("ui_select") or Input.is_action_pressed("ui_accept")
 
 	if shoot_pressed:
 		is_charging = true
@@ -162,6 +171,39 @@ func _handle_shot_mechanic(delta: float) -> void:
 			_execute_kick()
 			is_charging = false
 			shot_charge = 0.0
+
+func _execute_pass() -> void:
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return
+
+	var dist_to_ball = translation.distance_to(ball_ref.translation)
+	# Puede pasar si está en contacto por colisión, dentro del área frontal o en rango de distancia
+	if is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach:
+		var pass_dir = facing_direction
+		if velocity.length_squared() > 1.0:
+			pass_dir = (facing_direction * 0.7 + velocity.normalized() * 0.3).normalized()
+		elif dist_to_ball > 0.01:
+			var to_ball = (ball_ref.global_transform.origin - global_transform.origin)
+			to_ball.y = 0.0
+			if to_ball.length_squared() > 0.01:
+				pass_dir = (facing_direction * 0.4 + to_ball.normalized() * 0.6).normalized()
+
+		var pass_impulse: Vector3 = Vector3.ZERO
+		if mechanics and mechanics.has_method("calculate_pass_force"):
+			var res = mechanics.calculate_pass_force(pass_dir.x, pass_dir.z)
+			if typeof(res) == TYPE_VECTOR3:
+				pass_impulse = res
+			elif typeof(res) == TYPE_REAL or typeof(res) == TYPE_INT:
+				var mag = float(res)
+				pass_impulse = Vector3(pass_dir.x * mag, 0.1, pass_dir.z * mag)
+			else:
+				pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.1, pass_dir.z * fallback_pass_force)
+		else:
+			pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.1, pass_dir.z * fallback_pass_force)
+
+		ball_ref.apply_central_impulse(pass_impulse)
+		drain_stamina(4.0)
+		print("[Player] ¡Pase corto ejecutado con Z/J! Vector impulso suave: ", pass_impulse)
 
 func _execute_kick() -> void:
 	if not ball_ref or not is_instance_valid(ball_ref):

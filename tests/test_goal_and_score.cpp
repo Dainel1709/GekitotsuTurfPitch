@@ -76,6 +76,22 @@ int main() {
     assert(ball.get_vel_z() > 0.0f);  // Invierte dirección hacia el interior
     std::cout << "  -> Rebote elastico en pared norte (Z=-12.5): vz=" << ball.get_vel_z() << " (>0) OK" << std::endl;
 
+    // 8. Verificación de pase corto (calculate_pass_force y short_pass_force)
+    godot::Vector3 pass_vec = mechanics.calculate_pass_force(0.0, -1.0);
+    assert(std::abs(pass_vec.z - (-9.0)) < 0.001);
+    assert(std::abs(pass_vec.x) < 0.001);
+    assert(std::abs(pass_vec.y - 0.1) < 0.001);
+    std::cout << "  -> calculate_pass_force(): vz=" << pass_vec.z << ", vy=" << pass_vec.y << " (suave y raso) OK" << std::endl;
+
+    // 9. Verificación de actualización de estadísticas al finalizar partido (3 goles)
+    int prev_discipline = gtp::DeSiGNARStoryTree::get_global_stats().sports_discipline;
+    int prev_money = gtp::DeSiGNARStoryTree::get_global_stats().money;
+    mechanics.apply_match_result(3, 1); // Victoria 3 a 1
+    assert(gtp::DeSiGNARStoryTree::get_global_stats().sports_discipline == prev_discipline + 15);
+    assert(gtp::DeSiGNARStoryTree::get_global_stats().money == prev_money + 250);
+    std::cout << "  -> apply_match_result(): disciplina=" << gtp::DeSiGNARStoryTree::get_global_stats().sports_discipline 
+              << ", dinero=" << gtp::DeSiGNARStoryTree::get_global_stats().money << " OK" << std::endl;
+
     std::cout << "TODAS LAS PRUEBAS DE LIMITES Y MARCADOR PASARON EXITOSAMENTE." << std::endl;
     return 0;
 }

@@ -89,6 +89,26 @@ public:
     [[nodiscard]] int get_current_day() const noexcept {
         return tree.get_player_stats().current_day;
     }
+
+    void apply_match_result(int player_goals, int opponent_goals) {
+        tree.apply_match_result(player_goals, opponent_goals);
+    }
+
+    void add_sports_discipline(int amount) noexcept {
+        tree.add_sports_discipline(amount);
+    }
+
+    void add_street_reputation(int amount) noexcept {
+        tree.add_street_reputation(amount);
+    }
+
+    void add_combat_technique(int amount) noexcept {
+        tree.add_combat_technique(amount);
+    }
+
+    void add_money(int amount) noexcept {
+        tree.add_money(amount);
+    }
 };
 
 } // namespace gtp
