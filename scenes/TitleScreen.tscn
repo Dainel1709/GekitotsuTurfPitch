@@ -1,0 +1,46 @@
+[gd_scene load_steps=2 format=2]
+
+[ext_resource path="res://scripts/TitleScreen.gd" type="Script" id=1]
+
+[node name="TitleScreen" type="Control"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource( 1 )
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_left = 60.0
+margin_top = 60.0
+margin_right = -60.0
+margin_bottom = -60.0
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer"]
+size_flags_horizontal = 4
+size_flags_vertical = 0
+custom_fonts/font = null
+text = "GEKITOTSU TURF PITCH"
+align = 1
+valign = 1
+
+[node name="Spacer1" type="Control" parent="VBoxContainer"]
+rect_min_size = Vector2( 0, 40 )
+size_flags_vertical = 0
+
+[node name="IntroLabel" type="Label" parent="VBoxContainer"]
+size_flags_horizontal = 4
+size_flags_vertical = 0
+text = "En un pequeño pueblo de Japón, Ryu Hayama sueña con convertirse en el mejor jugador de fútbol del mundo. Criado en las canchas improvisadas de su barrio, este joven canterano deberá superar rivales, obstáculos y su propio destino para llegar a la cima. ¿Tienes el coraje para guiarle hasta la gloria?"
+autowrap = true
+align = 1
+
+[node name="Spacer2" type="Control" parent="VBoxContainer"]
+rect_min_size = Vector2( 0, 60 )
+size_flags_vertical = 1
+
+[node name="StartButton" type="Button" parent="VBoxContainer"]
+size_flags_horizontal = 4
+size_flags_vertical = 0
+rect_min_size = Vector2( 220, 55 )
+text = "Iniciar Juego"
