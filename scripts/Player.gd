@@ -27,6 +27,7 @@ var facing_direction: Vector3 = Vector3(0.0, 0.0, -1.0) # Orientado hacia porter
 var ball_ref: RigidBody = null
 var is_colliding_with_ball: bool = false
 var is_ball_in_kick_area: bool = false
+var is_dribbling: bool = false
 var is_ball_controlled: bool = false
 
 # Timers de conducción y autopase
@@ -167,6 +168,10 @@ func _physics_process(delta: float) -> void:
 	if knock_on_boost_timer > 0.0:
 		current_speed *= 1.22
 
+	# Conducción en Corto con botón L presionado (velocidad al 80% para recortes precisos)
+	if cur_btn_l and (is_dribbling or is_ball_controlled):
+		current_speed *= 0.8
+
 	# Reducción de velocidad mientras prepara un tiro cargado con Botón Cuadrado
 	if is_charging:
 		current_speed *= 0.65
@@ -197,10 +202,12 @@ func _physics_process(delta: float) -> void:
 
 func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> void:
 	if kick_cooldown > 0.0:
+		is_dribbling = false
 		is_ball_controlled = false
 		return
 
 	if not ball_ref or not is_instance_valid(ball_ref):
+		is_dribbling = false
 		is_ball_controlled = false
 		return
 
@@ -216,20 +223,60 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 	if dist_to_ball > 0.001:
 		dot = facing_direction.dot(to_ball / dist_to_ball)
 
-	# Control del balón: dentro de dribble_control_radius (1.65 m), velocidad < 16.0 y de frente (dot >= -0.25 o distancia <= 0.45 m)
-	if dist_to_ball <= dribble_control_radius and ball_speed < 16.0 and (dot >= -0.25 or dist_to_ball <= 0.45):
-		is_ball_controlled = true
-		var target_dist: float = 1.45 if is_sprinting else 1.0
-		var target_pos: Vector3 = player_pos + facing_direction * target_dist
+	# 1. Bandera booleana is_dribbling:
+	# Se activa cuando el balón entra en dribble_control_radius (1.65 m) con velocidad < 15.0 y de frente.
+	# Se mantiene activa mientras dist <= 1.75 m y kick_cooldown <= 0.0 (sin soltar cuando dot sea negativo en giros bruscos).
+	if not is_dribbling:
+		if dist_to_ball <= dribble_control_radius and ball_speed < 15.0 and (dot >= -0.25 or dist_to_ball <= 0.45):
+			is_dribbling = true
+	else:
+		if dist_to_ball > 1.75 or kick_cooldown > 0.0:
+			is_dribbling = false
 
+	if is_dribbling:
+		is_ball_controlled = true
+
+		# 2. Distancia objetivo:
+		# Conducción en Corto con L presionado (0.65 m), giro cerrado con dot < 0.2 (0.70 m),
+		# sprint (1.45 m) o caminar normal (1.0 m)
+		var is_holding_l: bool = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+		var target_dist: float = 1.0
+		if is_holding_l:
+			target_dist = 0.65
+		elif dot < 0.2:
+			target_dist = 0.70
+		elif is_sprinting:
+			target_dist = 1.45
+		else:
+			target_dist = 1.0
+
+		var target_pos: Vector3 = player_pos + facing_direction * target_dist
 		var to_target: Vector3 = target_pos - ball_pos
 		to_target.y = 0.0
 
 		var vel_carry: Vector3 = velocity * 0.85 if is_moving else Vector3.ZERO
 		var target_vel: Vector3 = to_target * 10.0 + vel_carry
+
+		# 3. Limitar (clamp) la velocidad máxima de corrección del balón en X/Z
+		# a max_dribble_speed = max(current_speed * 1.35, 12.5) para que al girar 180° el balón orbite
+		var player_speed: float = velocity.length()
+		var max_dribble_speed: float = max(player_speed * 1.35, 12.5)
+		var target_h_speed: float = Vector2(target_vel.x, target_vel.z).length()
+		if target_h_speed > max_dribble_speed and target_h_speed > 0.001:
+			var scale_factor = max_dribble_speed / target_h_speed
+			target_vel.x *= scale_factor
+			target_vel.z *= scale_factor
+
 		var lerp_weight: float = clamp(14.0 * delta, 0.0, 1.0)
 		ball_ref.linear_velocity.x = lerp(ball_ref.linear_velocity.x, target_vel.x, lerp_weight)
 		ball_ref.linear_velocity.z = lerp(ball_ref.linear_velocity.z, target_vel.z, lerp_weight)
+
+		# Clamping de la velocidad horizontal del RigidBody
+		var ball_h_speed: float = Vector2(ball_ref.linear_velocity.x, ball_ref.linear_velocity.z).length()
+		if ball_h_speed > max_dribble_speed and ball_h_speed > 0.001:
+			var scale_b = max_dribble_speed / ball_h_speed
+			ball_ref.linear_velocity.x *= scale_b
+			ball_ref.linear_velocity.z *= scale_b
 
 		# Actualizar velocidad angular acorde al desplazamiento de rodadura
 		var ball_radius: float = 0.25
@@ -244,12 +291,14 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 func _is_ball_controlled() -> bool:
 	if kick_cooldown > 0.0:
 		return false
+	if is_dribbling:
+		return true
 	if is_ball_controlled:
 		return true
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return false
 	var dist = translation.distance_to(ball_ref.translation)
-	if dist > dribble_control_radius or ball_ref.linear_velocity.length() >= 16.0:
+	if dist > dribble_control_radius or ball_ref.linear_velocity.length() >= 15.0:
 		return false
 	var to_ball = ball_ref.global_transform.origin - global_transform.origin
 	to_ball.y = 0.0
@@ -271,6 +320,7 @@ func _execute_knock_on() -> void:
 	)
 
 	kick_cooldown = 0.38
+	is_dribbling = false
 	is_ball_controlled = false
 	knock_on_boost_timer = 0.45
 	drain_stamina(10.0)
@@ -362,7 +412,7 @@ func _can_kick_ball() -> bool:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return false
 	var dist_to_ball = translation.distance_to(ball_ref.translation)
-	return is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach or is_ball_controlled
+	return is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach or is_dribbling or is_ball_controlled
 
 # --- Botón X: Pase Corto Raso ---
 func _execute_short_pass() -> void:
@@ -384,6 +434,7 @@ func _execute_short_pass() -> void:
 	ball_ref.apply_central_impulse(pass_impulse)
 	drain_stamina(4.0)
 	kick_cooldown = 0.25
+	is_dribbling = false
 	is_ball_controlled = false
 	print("[PPSSPP] Botón X (Cruz): Pase corto ejecutado -> ", pass_impulse)
 
@@ -407,6 +458,7 @@ func _execute_lob_pass() -> void:
 	ball_ref.apply_central_impulse(lob_impulse)
 	drain_stamina(6.0)
 	kick_cooldown = 0.25
+	is_dribbling = false
 	is_ball_controlled = false
 	print("[PPSSPP] Botón O (Círculo): Pase bombeado / Centro ejecutado -> ", lob_impulse)
 
@@ -430,6 +482,7 @@ func _execute_through_pass() -> void:
 	ball_ref.apply_central_impulse(through_impulse)
 	drain_stamina(7.0)
 	kick_cooldown = 0.25
+	is_dribbling = false
 	is_ball_controlled = false
 	print("[PPSSPP] Botón Δ (Triángulo): Pase en profundidad ejecutado -> ", through_impulse)
 
@@ -445,8 +498,40 @@ func _execute_kick() -> void:
 	var stamina_cost = 8.0 + shot_charge * 14.0
 	drain_stamina(stamina_cost)
 	kick_cooldown = 0.25
+	is_dribbling = false
 	is_ball_controlled = false
 	print("[PPSSPP] Botón □ (Cuadrado): Disparo ejecutado -> Potencia: ", stepify(shot_charge * 100, 1), "% | Vector: ", kick_impulse)
+
+# --- Detección de Rivales y Compañeros para Posesión de Balón ---
+func _is_rival_near_ball(ball_pos: Vector3, max_dist: float = 2.2) -> bool:
+	var tree = get_tree()
+	if not tree:
+		return false
+	var rival_groups = ["opponents", "rivals", "enemy"]
+	for grp in rival_groups:
+		var nodes = tree.get_nodes_in_group(grp)
+		for node in nodes:
+			if node is Spatial and is_instance_valid(node) and not node.is_queued_for_deletion():
+				var n_pos = node.global_transform.origin
+				n_pos.y = ball_pos.y
+				if ball_pos.distance_to(n_pos) <= max_dist:
+					return true
+	return false
+
+func _get_allied_teammate_near_ball(ball_pos: Vector3, max_dist: float = 2.2) -> Spatial:
+	var tree = get_tree()
+	if not tree:
+		return null
+	var ally_groups = ["teammates", "allies"]
+	for grp in ally_groups:
+		var nodes = tree.get_nodes_in_group(grp)
+		for node in nodes:
+			if node != self and node is Spatial and is_instance_valid(node) and not node.is_queued_for_deletion():
+				var n_pos = node.global_transform.origin
+				n_pos.y = ball_pos.y
+				if ball_pos.distance_to(n_pos) <= max_dist:
+					return node as Spatial
+	return null
 
 # --- Botón L (Q / L1): Pedir el balón o Control Orientado ---
 func _on_button_l_pressed() -> void:
@@ -454,26 +539,53 @@ func _on_button_l_pressed() -> void:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return
 
-	# 1. Si ya tienes el balón cerca: Control orientado hacia la portería rival
-	if _can_kick_ball():
-		ball_ref.linear_velocity *= 0.15
-		ball_ref.angular_velocity = Vector3.ZERO
-		facing_direction = Vector3(0.0, 0.0, -1.0)
-		print("[Carrera] Botón L (Q / L1): Control orientado hacia portería.")
+	var ball_pos: Vector3 = ball_ref.global_transform.origin
+	var player_pos: Vector3 = global_transform.origin
+	var to_player: Vector3 = ball_pos - player_pos
+	to_player.y = 0.0
+	var dist_to_player: float = to_player.length()
+
+	# 1. Si existe algún rival a menos de 2.2 m del balón (el rival tiene posesión),
+	# presionar L NO debe pasar ni atraer el balón hacia el jugador; ignora la petición.
+	if _is_rival_near_ball(ball_pos, 2.2):
+		print("[Carrera] Botón L (Q / L1): Posesión rival (< 2.2m); petición ignorada.")
 		return
 
-	# 2. Si NO tienes el balón: Pedir el pase hacia tu posición adelantada
-	var target_pos = global_transform.origin + (facing_direction * 1.2)
-	var to_player = target_pos - ball_ref.global_transform.origin
-	to_player.y = 0.0
-
-	var dist = to_player.length()
-	if dist > 0.5 and dist <= 24.0:
-		var pass_dir = to_player.normalized()
-		var pass_speed = clamp(dist * 0.85, 8.0, 18.0)
+	# 2. Si el balón está a <= 2.2 m del propio jugador (y no lo tiene un rival):
+	# Recepción / Control Orientado (frena el balón a 0.65 m delante del jugador)
+	if dist_to_player <= 2.2:
+		facing_direction = Vector3(0.0, 0.0, -1.0)
+		var target_pos = player_pos + facing_direction * 0.65
+		target_pos.y = ball_pos.y
+		ball_ref.global_transform.origin = target_pos
 		ball_ref.linear_velocity = Vector3.ZERO
-		ball_ref.apply_central_impulse(Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed))
-		print("[Carrera] Botón L (Q / L1): ¡Balón pedido al pie!")
+		ball_ref.angular_velocity = Vector3.ZERO
+		is_dribbling = true
+		is_ball_controlled = true
+		kick_cooldown = 0.0
+		print("[Carrera] Botón L (Q / L1): Recepción / Control orientado a 0.65 m hacia portería.")
+		return
+
+	# 3. Si el balón está lejos (> 2.2 m):
+	# Solo ejecuta un pase dirigido hacia el jugador si existe un compañero aliado a menos de 2.2 m del balón
+	var ally = _get_allied_teammate_near_ball(ball_pos, 2.2)
+	if ally != null:
+		var pass_target = player_pos + (facing_direction * 1.0)
+		var pass_vec = pass_target - ball_pos
+		pass_vec.y = 0.0
+		var pass_dist = pass_vec.length()
+		if pass_dist > 0.1:
+			var pass_dir = pass_vec.normalized()
+			var pass_speed = clamp(pass_dist * 0.85, 8.0, 18.0)
+			var impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
+			ball_ref.linear_velocity = impulse
+			ball_ref.apply_central_impulse(impulse)
+			print("[Carrera] Botón L (Q / L1): Compañero aliado realiza pase hacia Ryu.")
+		return
+
+	# 4. Balón suelto en la cancha y no hay nadie cerca:
+	# Se elimina por completo la atracción magnética desde lejos. No hacer nada.
+	print("[Carrera] Botón L (Q / L1): Balón suelto sin compañeros cerca; petición ignorada.")
 		
 func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
 	if mechanics:
@@ -544,6 +656,9 @@ func get_current_speed() -> float:
 		spd = mechanics.get_current_speed()
 	if knock_on_boost_timer > 0.0:
 		spd *= 1.22
+	var cur_btn_l: bool = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+	if cur_btn_l and (is_dribbling or is_ball_controlled):
+		spd *= 0.8
 	return spd
 
 func get_facing_direction() -> Vector3:
