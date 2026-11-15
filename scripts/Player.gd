@@ -13,6 +13,8 @@ export var fallback_lob_force: float = 17.0
 export var fallback_through_force: float = 20.0
 export var kick_reach: float = 1.75
 export var dribble_distance: float = 1.2
+export var dribble_control_radius: float = 1.65
+export var turn_speed: float = 16.0
 export var charge_speed: float = 2.4 # Carga completa en ~0.42 segundos
 
 # Estado de Controles PPSSPP y Balón
@@ -25,6 +27,13 @@ var facing_direction: Vector3 = Vector3(0.0, 0.0, -1.0) # Orientado hacia porter
 var ball_ref: RigidBody = null
 var is_colliding_with_ball: bool = false
 var is_ball_in_kick_area: bool = false
+var is_ball_controlled: bool = false
+
+# Timers de conducción y autopase
+var kick_cooldown: float = 0.0
+var knock_on_boost_timer: float = 0.0
+var r_tap_timer: float = 0.0
+var prev_btn_r: bool = false
 
 # Detección de flancos para botones PPSSPP
 var prev_btn_cross: bool = false
@@ -68,6 +77,14 @@ func _physics_process(delta: float) -> void:
 	# 1. Resolver referencia al balón si es necesario
 	_resolve_ball_reference()
 
+	# Actualización de temporizadores de juego
+	if kick_cooldown > 0.0:
+		kick_cooldown = max(0.0, kick_cooldown - delta)
+	if knock_on_boost_timer > 0.0:
+		knock_on_boost_timer = max(0.0, knock_on_boost_timer - delta)
+	if r_tap_timer > 0.0:
+		r_tap_timer = max(0.0, r_tap_timer - delta)
+
 	# 2. Captura de Movimiento (Exclusivo Flechas + Cruceta/Stick del Mando)
 	var input_2d := Vector2.ZERO
 
@@ -88,15 +105,6 @@ func _physics_process(delta: float) -> void:
 	if abs(joy_y) > 0.2:
 		input_2d.y = joy_y
 
-	# Botón R: Correr (Sprint) / Esprintar -> W | R1 (PS) / RB (Xbox)
-	var is_sprinting: bool = Input.is_action_pressed("psp_r") or Input.is_key_pressed(KEY_W) or Input.is_joy_button_pressed(0, JOY_BUTTON_5)
-
-	# Botón L: Pedir el balón (sin posesión) / Freno y control orientado (con posesión) -> Q | L1 (PS)
-	var cur_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
-	if cur_btn_l and not prev_btn_l:
-		_on_button_l_pressed()
-	prev_btn_l = cur_btn_l
-
 	# Normalizar input diagonal
 	if input_2d.length_squared() > 1.0:
 		input_2d = input_2d.normalized()
@@ -105,8 +113,33 @@ func _physics_process(delta: float) -> void:
 	var move_direction := Vector3(input_2d.x, 0.0, input_2d.y)
 	var is_moving: bool = move_direction.length_squared() > 0.001
 
+	# Suavizado de facing_direction hacia las flechas de dirección o stick izquierdo (turn_speed = 16.0)
 	if is_moving:
-		facing_direction = move_direction.normalized()
+		var target_dir = move_direction.normalized()
+		var cur_angle = atan2(facing_direction.x, facing_direction.z)
+		var target_angle = atan2(target_dir.x, target_dir.z)
+		var smoothed_angle = lerp_angle(cur_angle, target_angle, clamp(turn_speed * delta, 0.0, 1.0))
+		facing_direction = Vector3(sin(smoothed_angle), 0.0, cos(smoothed_angle)).normalized()
+
+	# Botón R: Correr (Sprint) / Esprintar -> W | R1 (PS) / RB (Xbox)
+	var cur_btn_r: bool = Input.is_action_pressed("psp_r") or Input.is_key_pressed(KEY_W) or Input.is_joy_button_pressed(0, JOY_BUTTON_5)
+	var is_sprinting: bool = cur_btn_r
+	var r_just_pressed: bool = cur_btn_r and not prev_btn_r
+	prev_btn_r = cur_btn_r
+
+	# Detección de doble toque en R (ventana < 0.28 s) para autopase largo (knock-on)
+	if r_just_pressed:
+		if r_tap_timer > 0.0 and is_moving and _is_ball_controlled():
+			_execute_knock_on()
+			r_tap_timer = 0.0
+		else:
+			r_tap_timer = 0.28
+
+	# Botón L: Pedir el balón (sin posesión) / Freno y control orientado (con posesión) -> Q | L1 (PS)
+	var cur_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+	if cur_btn_l and not prev_btn_l:
+		_on_button_l_pressed()
+	prev_btn_l = cur_btn_l
 
 	# 4. Procesamiento de acciones PPSSPP (Cruz, Círculo, Triángulo, Cuadrado)
 	_handle_ppsspp_actions(delta)
@@ -130,6 +163,10 @@ func _physics_process(delta: float) -> void:
 		var sprint_mult: float = 1.6 if (is_sprinting and fallback_stamina > 0.0) else 1.0
 		current_speed = fallback_base_speed * sprint_mult * fatigue
 
+	# Impulso temporal de velocidad por autopase largo (knock-on boost = 0.45 s con 1.22x)
+	if knock_on_boost_timer > 0.0:
+		current_speed *= 1.22
+
 	# Reducción de velocidad mientras prepara un tiro cargado con Botón Cuadrado
 	if is_charging:
 		current_speed *= 0.65
@@ -140,7 +177,7 @@ func _physics_process(delta: float) -> void:
 
 	velocity = move_and_slide(velocity, Vector3.UP)
 
-	# 6. Conducción suave de balón al contacto
+	# 6. Conducción controlada del balón (Dribbling en plano X/Z)
 	is_colliding_with_ball = false
 	var slide_count = get_slide_count()
 	for i in range(slide_count):
@@ -149,17 +186,95 @@ func _physics_process(delta: float) -> void:
 			is_colliding_with_ball = true
 			if col.collider is RigidBody:
 				ball_ref = col.collider as RigidBody
-				if not is_charging and velocity.length_squared() > 0.1:
-					var push_dir = -col.normal
-					push_dir.y = 0.0
-					var push_impulse = push_dir.normalized() * (velocity.length() * 0.35)
-					ball_ref.apply_central_impulse(push_impulse)
 
-	# Orientar rotación hacia la dirección de avance
-	if is_moving:
-		var target_pos: Vector3 = translation + move_direction
-		target_pos.y = translation.y
-		look_at(target_pos, Vector3.UP)
+	_update_ball_dribble(delta, is_moving, is_sprinting)
+
+	# Orientar rotación hacia facing_direction suavizado
+	var target_look: Vector3 = translation + facing_direction
+	target_look.y = translation.y
+	if translation.distance_squared_to(target_look) > 0.001:
+		look_at(target_look, Vector3.UP)
+
+func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> void:
+	if kick_cooldown > 0.0:
+		is_ball_controlled = false
+		return
+
+	if not ball_ref or not is_instance_valid(ball_ref):
+		is_ball_controlled = false
+		return
+
+	var player_pos: Vector3 = global_transform.origin
+	var ball_pos: Vector3 = ball_ref.global_transform.origin
+	var to_ball: Vector3 = ball_pos - player_pos
+	to_ball.y = 0.0
+	var dist_to_ball: float = to_ball.length()
+
+	var ball_speed: float = ball_ref.linear_velocity.length()
+
+	var dot: float = 1.0
+	if dist_to_ball > 0.001:
+		dot = facing_direction.dot(to_ball / dist_to_ball)
+
+	# Control del balón: dentro de dribble_control_radius (1.65 m), velocidad < 16.0 y de frente (dot >= -0.25 o distancia <= 0.45 m)
+	if dist_to_ball <= dribble_control_radius and ball_speed < 16.0 and (dot >= -0.25 or dist_to_ball <= 0.45):
+		is_ball_controlled = true
+		var target_dist: float = 1.45 if is_sprinting else 1.0
+		var target_pos: Vector3 = player_pos + facing_direction * target_dist
+
+		var to_target: Vector3 = target_pos - ball_pos
+		to_target.y = 0.0
+
+		var vel_carry: Vector3 = velocity * 0.85 if is_moving else Vector3.ZERO
+		var target_vel: Vector3 = to_target * 10.0 + vel_carry
+		var lerp_weight: float = clamp(14.0 * delta, 0.0, 1.0)
+		ball_ref.linear_velocity.x = lerp(ball_ref.linear_velocity.x, target_vel.x, lerp_weight)
+		ball_ref.linear_velocity.z = lerp(ball_ref.linear_velocity.z, target_vel.z, lerp_weight)
+
+		# Actualizar velocidad angular acorde al desplazamiento de rodadura
+		var ball_radius: float = 0.25
+		ball_ref.angular_velocity = Vector3(
+			ball_ref.linear_velocity.z / ball_radius,
+			0.0,
+			-ball_ref.linear_velocity.x / ball_radius
+		)
+	else:
+		is_ball_controlled = false
+
+func _is_ball_controlled() -> bool:
+	if kick_cooldown > 0.0:
+		return false
+	if is_ball_controlled:
+		return true
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return false
+	var dist = translation.distance_to(ball_ref.translation)
+	if dist > dribble_control_radius or ball_ref.linear_velocity.length() >= 16.0:
+		return false
+	var to_ball = ball_ref.global_transform.origin - global_transform.origin
+	to_ball.y = 0.0
+	var dot = facing_direction.dot(to_ball.normalized()) if dist > 0.001 else 1.0
+	return (dot >= -0.25 or dist <= 0.45)
+
+func _execute_knock_on() -> void:
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return
+
+	var knock_dir = facing_direction.normalized()
+	var knock_speed: float = 17.5
+	ball_ref.linear_velocity = Vector3(knock_dir.x * knock_speed, 0.06, knock_dir.z * knock_speed)
+	var ball_radius: float = 0.25
+	ball_ref.angular_velocity = Vector3(
+		knock_dir.z * knock_speed / ball_radius,
+		0.0,
+		-knock_dir.x * knock_speed / ball_radius
+	)
+
+	kick_cooldown = 0.38
+	is_ball_controlled = false
+	knock_on_boost_timer = 0.45
+	drain_stamina(10.0)
+	print("[Player] ¡Autopase largo (Knock-on) con doble toque en W / R1! Velocidad: ", knock_speed, " | Boost activo")
 
 func _get_control_scheme() -> int:
 	var gs = get_node_or_null("/root/GameSettings")
@@ -247,7 +362,7 @@ func _can_kick_ball() -> bool:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return false
 	var dist_to_ball = translation.distance_to(ball_ref.translation)
-	return is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach
+	return is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach or is_ball_controlled
 
 # --- Botón X: Pase Corto Raso ---
 func _execute_short_pass() -> void:
@@ -268,6 +383,8 @@ func _execute_short_pass() -> void:
 
 	ball_ref.apply_central_impulse(pass_impulse)
 	drain_stamina(4.0)
+	kick_cooldown = 0.25
+	is_ball_controlled = false
 	print("[PPSSPP] Botón X (Cruz): Pase corto ejecutado -> ", pass_impulse)
 
 # --- Botón O: Centro / Pase Bombeado ---
@@ -289,6 +406,8 @@ func _execute_lob_pass() -> void:
 
 	ball_ref.apply_central_impulse(lob_impulse)
 	drain_stamina(6.0)
+	kick_cooldown = 0.25
+	is_ball_controlled = false
 	print("[PPSSPP] Botón O (Círculo): Pase bombeado / Centro ejecutado -> ", lob_impulse)
 
 # --- Botón Δ: Pase en Profundidad / al Hueco ---
@@ -310,6 +429,8 @@ func _execute_through_pass() -> void:
 
 	ball_ref.apply_central_impulse(through_impulse)
 	drain_stamina(7.0)
+	kick_cooldown = 0.25
+	is_ball_controlled = false
 	print("[PPSSPP] Botón Δ (Triángulo): Pase en profundidad ejecutado -> ", through_impulse)
 
 # --- Botón □: Disparo / Remate a Portería ---
@@ -323,6 +444,8 @@ func _execute_kick() -> void:
 	ball_ref.apply_central_impulse(kick_impulse)
 	var stamina_cost = 8.0 + shot_charge * 14.0
 	drain_stamina(stamina_cost)
+	kick_cooldown = 0.25
+	is_ball_controlled = false
 	print("[PPSSPP] Botón □ (Cuadrado): Disparo ejecutado -> Potencia: ", stepify(shot_charge * 100, 1), "% | Vector: ", kick_impulse)
 
 # --- Botón L (Q / L1): Pedir el balón o Control Orientado ---
@@ -416,6 +539,12 @@ func get_max_stamina() -> float:
 	return fallback_max_stamina
 
 func get_current_speed() -> float:
+	var spd = fallback_base_speed
 	if mechanics:
-		return mechanics.get_current_speed()
-	return fallback_base_speed
+		spd = mechanics.get_current_speed()
+	if knock_on_boost_timer > 0.0:
+		spd *= 1.22
+	return spd
+
+func get_facing_direction() -> Vector3:
+	return facing_direction
