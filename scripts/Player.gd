@@ -68,16 +68,16 @@ func _physics_process(delta: float) -> void:
 	# 1. Resolver referencia al balón si es necesario
 	_resolve_ball_reference()
 
-	# 2. Captura de Movimiento estilo PPSSPP (Cruceta, Joystick Analógico, WASD, Flechas)
+	# 2. Captura de Movimiento (Exclusivo Flechas + Cruceta/Stick del Mando)
 	var input_2d := Vector2.ZERO
 
-	if Input.is_action_pressed("psp_up") or Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+	if Input.is_action_pressed("psp_up") or Input.is_key_pressed(KEY_UP):
 		input_2d.y -= 1.0
-	if Input.is_action_pressed("psp_down") or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+	if Input.is_action_pressed("psp_down") or Input.is_key_pressed(KEY_DOWN):
 		input_2d.y += 1.0
-	if Input.is_action_pressed("psp_left") or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+	if Input.is_action_pressed("psp_left") or Input.is_key_pressed(KEY_LEFT):
 		input_2d.x -= 1.0
-	if Input.is_action_pressed("psp_right") or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+	if Input.is_action_pressed("psp_right") or Input.is_key_pressed(KEY_RIGHT):
 		input_2d.x += 1.0
 
 	# Lectura del joystick analógico del gamepad
@@ -88,15 +88,14 @@ func _physics_process(delta: float) -> void:
 	if abs(joy_y) > 0.2:
 		input_2d.y = joy_y
 
-	# Botón R: Esprintar (aumenta velocidad y drena más estamina en C++)
-	var is_sprinting: bool = Input.is_action_pressed("psp_r") or Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_E) or Input.is_joy_button_pressed(0, JOY_BUTTON_5)
+	# Botón R: Correr (Sprint) / Esprintar -> W | R1 (PS) / RB (Xbox)
+	var is_sprinting: bool = Input.is_action_pressed("psp_r") or Input.is_key_pressed(KEY_W) or Input.is_joy_button_pressed(0, JOY_BUTTON_5)
 
-	# Botón L: Alternar modo de puntería manual / asistida
-	var btn_l_pressed = Input.is_action_just_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or (Input.is_joy_button_pressed(0, JOY_BUTTON_4) and not prev_btn_l)
-	if btn_l_pressed and not prev_btn_l:
-		manual_aim_mode = !manual_aim_mode
-		print("[Player] Botón L: Modo Manual alternado -> ", "MANUAL" if manual_aim_mode else "ASISTIDO")
-	prev_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+	# Botón L: Pedir el balón (sin posesión) / Freno y control orientado (con posesión) -> Q | L1 (PS)
+	var cur_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+	if cur_btn_l and not prev_btn_l:
+		_on_button_l_pressed()
+	prev_btn_l = cur_btn_l
 
 	# Normalizar input diagonal
 	if input_2d.length_squared() > 1.0:
@@ -176,22 +175,24 @@ func _handle_ppsspp_actions(delta: float) -> void:
 	var btn_square = gs.get_button_square(0) if (gs and gs.has_method("get_button_square")) else JOY_BUTTON_2
 	var btn_triangle = gs.get_button_triangle(0) if (gs and gs.has_method("get_button_triangle")) else JOY_BUTTON_3
 
-	# --- 1. Botón X (Cruz - Pase Corto raso y preciso en ambos esquemas) ---
-	var cur_btn_cross = Input.is_action_pressed("psp_cross") or Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_X) or Input.is_joy_button_pressed(0, btn_cross)
+	# --- 1. Botón X (Cruz): Pase Corto -> Tecla Z | X (PS) / A (Xbox) ---
+	var cur_btn_cross = Input.is_action_pressed("psp_cross") or Input.is_key_pressed(KEY_Z) or Input.is_joy_button_pressed(0, btn_cross)
 	if cur_btn_cross and not prev_btn_cross:
 		_execute_short_pass()
 	prev_btn_cross = cur_btn_cross
 
-	# --- 2. Botón Δ (Triángulo - Pase en profundidad / al hueco en ambos esquemas) ---
-	var cur_btn_triangle = Input.is_action_pressed("psp_triangle") or Input.is_key_pressed(KEY_I) or Input.is_key_pressed(KEY_V) or Input.is_joy_button_pressed(0, btn_triangle)
+	# --- 2. Botón Δ (Triángulo): Pase en profundidad -> Tecla S | Δ (PS) / Y (Xbox) ---
+	var cur_btn_triangle = Input.is_action_pressed("psp_triangle") or Input.is_key_pressed(KEY_S) or Input.is_joy_button_pressed(0, btn_triangle)
 	if cur_btn_triangle and not prev_btn_triangle:
 		_execute_through_pass()
 	prev_btn_triangle = cur_btn_triangle
 
-	# Lectura física de entradas para Círculo y Cuadrado
-	var raw_circle_pressed = Input.is_action_pressed("psp_circle") or Input.is_key_pressed(KEY_L) or Input.is_key_pressed(KEY_C) or Input.is_joy_button_pressed(0, btn_circle)
-	var raw_square_pressed = Input.is_action_pressed("psp_square") or Input.is_key_pressed(KEY_K) or Input.is_key_pressed(KEY_SPACE) or Input.is_joy_button_pressed(0, btn_square)
+	# --- 3. Botón O (Círculo): Tecla X | O (PS) / B (Xbox) ---
+	var raw_circle_pressed = Input.is_action_pressed("psp_circle") or Input.is_key_pressed(KEY_X) or Input.is_joy_button_pressed(0, btn_circle)
 
+	# --- 4. Botón □ (Cuadrado): Tecla A | □ (PS) / X (Xbox) ---
+	var raw_square_pressed = Input.is_action_pressed("psp_square") or Input.is_key_pressed(KEY_A) or Input.is_joy_button_pressed(0, btn_square)
+	
 	var shoot_pressed: bool = false
 	var lob_pressed: bool = false
 
@@ -324,6 +325,33 @@ func _execute_kick() -> void:
 	drain_stamina(stamina_cost)
 	print("[PPSSPP] Botón □ (Cuadrado): Disparo ejecutado -> Potencia: ", stepify(shot_charge * 100, 1), "% | Vector: ", kick_impulse)
 
+# --- Botón L (Q / L1): Pedir el balón o Control Orientado ---
+func _on_button_l_pressed() -> void:
+	_resolve_ball_reference()
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return
+
+	# 1. Si ya tienes el balón cerca: Control orientado hacia la portería rival
+	if _can_kick_ball():
+		ball_ref.linear_velocity *= 0.15
+		ball_ref.angular_velocity = Vector3.ZERO
+		facing_direction = Vector3(0.0, 0.0, -1.0)
+		print("[Carrera] Botón L (Q / L1): Control orientado hacia portería.")
+		return
+
+	# 2. Si NO tienes el balón: Pedir el pase hacia tu posición adelantada
+	var target_pos = global_transform.origin + (facing_direction * 1.2)
+	var to_player = target_pos - ball_ref.global_transform.origin
+	to_player.y = 0.0
+
+	var dist = to_player.length()
+	if dist > 0.5 and dist <= 24.0:
+		var pass_dir = to_player.normalized()
+		var pass_speed = clamp(dist * 0.85, 8.0, 18.0)
+		ball_ref.linear_velocity = Vector3.ZERO
+		ball_ref.apply_central_impulse(Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed))
+		print("[Carrera] Botón L (Q / L1): ¡Balón pedido al pie!")
+		
 func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
 	if mechanics:
 		if mechanics.has_method("calculate_kick_force"):

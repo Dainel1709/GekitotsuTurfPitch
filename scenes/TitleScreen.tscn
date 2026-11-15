@@ -17,30 +17,44 @@ margin_bottom = -60.0
 alignment = 1
 
 [node name="TitleLabel" type="Label" parent="VBoxContainer"]
+margin_left = 377.0
+margin_right = 527.0
+margin_bottom = 14.0
 size_flags_horizontal = 4
 size_flags_vertical = 0
-custom_fonts/font = null
 text = "GEKITOTSU TURF PITCH"
 align = 1
 valign = 1
 
 [node name="Spacer1" type="Control" parent="VBoxContainer"]
+margin_top = 18.0
+margin_right = 904.0
+margin_bottom = 58.0
 rect_min_size = Vector2( 0, 40 )
 size_flags_vertical = 0
 
 [node name="IntroLabel" type="Label" parent="VBoxContainer"]
-size_flags_horizontal = 4
-size_flags_vertical = 0
-text = "En un pequeño pueblo de Japón, Ryu Hayama sueña con convertirse en el mejor jugador de fútbol del mundo. Criado en las canchas improvisadas de su barrio, este joven canterano deberá superar rivales, obstáculos y su propio destino para llegar a la cima. ¿Tienes el coraje para guiarle hasta la gloria?"
-autowrap = true
+margin_top = 62.0
+margin_right = 904.0
+margin_bottom = 110.0
+size_flags_horizontal = 5
+size_flags_vertical = 2
+text = "En un pequeño pueblo de Venezuela (Merisa/Chama), Jose luis sueña con convertirse en el mejor jugador de fútbol del mundo. Criado en las canchas improvisadas de su barrio, este joven canterano deberá superar rivales, obstáculos y su propio destino para llegar a la cima. ¿Tienes el coraje para guiarle hasta la gloria?"
 align = 1
+autowrap = true
 
 [node name="Spacer2" type="Control" parent="VBoxContainer"]
+margin_top = 361.0
+margin_right = 904.0
+margin_bottom = 421.0
 rect_min_size = Vector2( 0, 60 )
-size_flags_vertical = 1
 
 [node name="StartButton" type="Button" parent="VBoxContainer"]
+margin_left = 342.0
+margin_top = 425.0
+margin_right = 562.0
+margin_bottom = 480.0
+rect_min_size = Vector2( 220, 55 )
 size_flags_horizontal = 4
 size_flags_vertical = 0
-rect_min_size = Vector2( 220, 55 )
 text = "Iniciar Juego"
