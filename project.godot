@@ -14,6 +14,10 @@ config/name="GekitotsuTurfPitch"
 config/icon="res://icon.png"
 run/main_scene="res://scenes/TitleScreen.tscn"
 
+[autoload]
+
+GameSettings="*res://scripts/autoload/GameSettings.gd"
+
 [gui]
 
 common/drop_mouse_on_gui_input_disabled=true

@@ -41,6 +41,16 @@ func _ready() -> void:
 
 	_update_tactic_display()
 	_update_clock_and_hud()
+	_update_controls_hint()
+
+func _update_controls_hint() -> void:
+	if controls_hint:
+		var gs = get_node_or_null("/root/GameSettings")
+		var scheme = gs.get_control_scheme() if (gs and gs.has_method("get_control_scheme")) else 0
+		if scheme == 0:
+			controls_hint.text = "FIFA: Cruz: Pase corto | O: Disparo | Δ: Pase al hueco | □: Centro | R: Sprint | L: Manual | SELECT: Táctica | START: Pausa"
+		else:
+			controls_hint.text = "PES: Cruz: Pase corto | O: Centro | Δ: Pase al hueco | □: Disparo | R: Sprint | L: Manual | SELECT: Táctica | START: Pausa"
 
 func _process(delta: float) -> void:
 	# 1. Botón START: Pausar / Reanudar el partido

@@ -6,6 +6,7 @@ onready var right_button = $VBoxContainer/RightButton
 onready var stats_label = $VBoxContainer/StatsLabel
 onready var match_button = $VBoxContainer/MatchButton
 onready var fight_button = $VBoxContainer/FightButton if has_node("VBoxContainer/FightButton") else null
+onready var controls_button = $VBoxContainer/ControlsButton if has_node("VBoxContainer/ControlsButton") else null
 
 var story_manager = null
 
@@ -16,6 +17,9 @@ func _ready() -> void:
 		match_button.connect("pressed", self, "_on_match_pressed")
 	if fight_button:
 		fight_button.connect("pressed", self, "_on_fight_pressed")
+	if controls_button:
+		controls_button.connect("pressed", self, "_on_controls_pressed")
+		_update_controls_button_text()
 	
 	# Enlace dinámico con la clase C++ GekitotsuStoryManager expuesta por GDExtension / GDNative
 	if ClassDB.class_exists("GekitotsuStoryManager"):
@@ -66,6 +70,9 @@ func update_ui() -> void:
 		right_button.text = "Asistir a la carrera clandestina (+20 Reputación, +$500 Dinero, +5 Combate)"
 		stats_label.text = "Disciplina Deportiva: %d | Combate: %d | Dinero: $%d | Reputación en Asfalto: %d" % [d, c, m, r]
 
+	_update_controls_button_text()
+	_setup_focus()
+
 func _get_persistent_stats() -> Dictionary:
 	if not get_tree().root.has_meta("gtp_stats"):
 		get_tree().root.set_meta("gtp_stats", {
@@ -105,3 +112,49 @@ func _on_match_pressed() -> void:
 
 func _on_fight_pressed() -> void:
 	get_tree().change_scene("res://scenes/FightArena.tscn")
+
+func _on_controls_pressed() -> void:
+	var gs = get_node_or_null("/root/GameSettings")
+	if gs and gs.has_method("toggle_control_scheme"):
+		gs.toggle_control_scheme()
+	_update_controls_button_text()
+
+func _update_controls_button_text() -> void:
+	if controls_button:
+		var scheme_str: String = "Clásico (FIFA)"
+		var gs = get_node_or_null("/root/GameSettings")
+		if gs and gs.has_method("get_scheme_short_name"):
+			scheme_str = gs.get_scheme_short_name()
+		controls_button.text = "Controles Fútbol: " + scheme_str
+
+func _setup_focus() -> void:
+	# Configurar navegación cíclica entre botones disponibles para el mando
+	var active_buttons: Array = []
+	if left_button and left_button.visible:
+		active_buttons.append(left_button)
+	if right_button and right_button.visible:
+		active_buttons.append(right_button)
+	if match_button and match_button.visible:
+		active_buttons.append(match_button)
+	if fight_button and fight_button.visible:
+		active_buttons.append(fight_button)
+	if controls_button and controls_button.visible:
+		active_buttons.append(controls_button)
+
+	var count = active_buttons.size()
+	for i in range(count):
+		var btn: Button = active_buttons[i]
+		var prev_btn: Button = active_buttons[(i - 1 + count) % count]
+		var next_btn: Button = active_buttons[(i + 1) % count]
+		btn.focus_neighbour_top = prev_btn.get_path()
+		btn.focus_neighbour_bottom = next_btn.get_path()
+
+	# Asegurar foco inicial en el primer botón activo para control por gamepad
+	if active_buttons.size() > 0:
+		var has_any_focus = false
+		for btn in active_buttons:
+			if btn.has_focus():
+				has_any_focus = true
+				break
+		if not has_any_focus:
+			active_buttons[0].grab_focus()

@@ -29,6 +29,7 @@ var is_ball_in_kick_area: bool = false
 # Detección de flancos para botones PPSSPP
 var prev_btn_cross: bool = false
 var prev_btn_circle: bool = false
+var prev_btn_square: bool = false
 var prev_btn_triangle: bool = false
 var prev_btn_l: bool = false
 
@@ -161,28 +162,58 @@ func _physics_process(delta: float) -> void:
 		target_pos.y = translation.y
 		look_at(target_pos, Vector3.UP)
 
+func _get_control_scheme() -> int:
+	var gs = get_node_or_null("/root/GameSettings")
+	if gs and gs.has_method("get_control_scheme"):
+		return gs.get_control_scheme()
+	return 0 # 0 = FIFA_CLASSIC, 1 = PES_ALTERNATIVE
+
 func _handle_ppsspp_actions(delta: float) -> void:
-	# --- 1. Botón X (Cruz - Pase Corto raso y preciso) ---
-	var cur_btn_cross = Input.is_action_pressed("psp_cross") or Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_X) or Input.is_joy_button_pressed(0, JOY_BUTTON_0)
+	var scheme = _get_control_scheme()
+	var gs = get_node_or_null("/root/GameSettings")
+	var btn_cross = gs.get_button_cross(0) if (gs and gs.has_method("get_button_cross")) else JOY_BUTTON_0
+	var btn_circle = gs.get_button_circle(0) if (gs and gs.has_method("get_button_circle")) else JOY_BUTTON_1
+	var btn_square = gs.get_button_square(0) if (gs and gs.has_method("get_button_square")) else JOY_BUTTON_2
+	var btn_triangle = gs.get_button_triangle(0) if (gs and gs.has_method("get_button_triangle")) else JOY_BUTTON_3
+
+	# --- 1. Botón X (Cruz - Pase Corto raso y preciso en ambos esquemas) ---
+	var cur_btn_cross = Input.is_action_pressed("psp_cross") or Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_X) or Input.is_joy_button_pressed(0, btn_cross)
 	if cur_btn_cross and not prev_btn_cross:
 		_execute_short_pass()
 	prev_btn_cross = cur_btn_cross
 
-	# --- 2. Botón O (Círculo - Centro / Pase Bombeado con elevación en Y) ---
-	var cur_btn_circle = Input.is_action_pressed("psp_circle") or Input.is_key_pressed(KEY_L) or Input.is_key_pressed(KEY_C) or Input.is_joy_button_pressed(0, JOY_BUTTON_1)
-	if cur_btn_circle and not prev_btn_circle:
-		_execute_lob_pass()
-	prev_btn_circle = cur_btn_circle
-
-	# --- 3. Botón Δ (Triángulo - Pase en profundidad / al hueco rápido) ---
-	var cur_btn_triangle = Input.is_action_pressed("psp_triangle") or Input.is_key_pressed(KEY_I) or Input.is_key_pressed(KEY_V) or Input.is_joy_button_pressed(0, JOY_BUTTON_3)
+	# --- 2. Botón Δ (Triángulo - Pase en profundidad / al hueco en ambos esquemas) ---
+	var cur_btn_triangle = Input.is_action_pressed("psp_triangle") or Input.is_key_pressed(KEY_I) or Input.is_key_pressed(KEY_V) or Input.is_joy_button_pressed(0, btn_triangle)
 	if cur_btn_triangle and not prev_btn_triangle:
 		_execute_through_pass()
 	prev_btn_triangle = cur_btn_triangle
 
-	# --- 4. Botón □ (Cuadrado - Disparo / Remate potente a puerta) ---
-	var shoot_pressed: bool = Input.is_action_pressed("psp_square") or Input.is_key_pressed(KEY_K) or Input.is_key_pressed(KEY_SPACE) or Input.is_joy_button_pressed(0, JOY_BUTTON_2)
+	# Lectura física de entradas para Círculo y Cuadrado
+	var raw_circle_pressed = Input.is_action_pressed("psp_circle") or Input.is_key_pressed(KEY_L) or Input.is_key_pressed(KEY_C) or Input.is_joy_button_pressed(0, btn_circle)
+	var raw_square_pressed = Input.is_action_pressed("psp_square") or Input.is_key_pressed(KEY_K) or Input.is_key_pressed(KEY_SPACE) or Input.is_joy_button_pressed(0, btn_square)
 
+	var shoot_pressed: bool = false
+	var lob_pressed: bool = false
+
+	if scheme == 0:
+		# Clásico (FIFA): Círculo = Disparo | Cuadrado = Centro / Pase bombeado
+		shoot_pressed = raw_circle_pressed
+		if raw_square_pressed and not prev_btn_square:
+			lob_pressed = true
+	else:
+		# Alternativo (PES / PPSSPP): Cuadrado = Disparo | Círculo = Centro / Pase bombeado
+		shoot_pressed = raw_square_pressed
+		if raw_circle_pressed and not prev_btn_circle:
+			lob_pressed = true
+
+	prev_btn_circle = raw_circle_pressed
+	prev_btn_square = raw_square_pressed
+
+	# Ejecutar centro / pase bombeado
+	if lob_pressed:
+		_execute_lob_pass()
+
+	# Ejecutar disparo / remate con carga
 	if shoot_pressed:
 		is_charging = true
 		shot_charge = min(1.0, shot_charge + charge_speed * delta)
