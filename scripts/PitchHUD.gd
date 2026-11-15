@@ -1,18 +1,32 @@
 extends CanvasLayer
 
-onready var score_label = $HUDControl/ScorePanel/ScoreLabel
-onready var goal_notice_label = $HUDControl/GoalNoticeLabel
-onready var controls_hint = $HUDControl/ControlsHint
+onready var clock_label: Label = $HUDControl/ScorePanel/VBox/ClockLabel
+onready var score_label: Label = $HUDControl/ScorePanel/VBox/ScoreLabel
+onready var tactic_label: Label = $HUDControl/ScorePanel/VBox/TacticLabel
+onready var pause_panel: PanelContainer = $HUDControl/PausePanel
+onready var goal_notice_label: Label = $HUDControl/GoalNoticeLabel
+onready var controls_hint: Label = $HUDControl/ControlsHint
 
 var mechanics = null
 var match_finished: bool = false
-const TARGET_GOALS: int = 3
+
+# Reloj de partido: 3 minutos reales (180 segundos) = 90 minutos de partido (1s real = 30s de partido)
+const MATCH_DURATION_REAL: float = 180.0
+var real_elapsed_time: float = 0.0
+
+# Sistema de Tácticas PPSSPP (SELECT)
+var tactic_index: int = 0
+const TACTIC_NAMES = ["Equilibrado", "Ofensivo", "Defensivo"]
+
+# Detección de flancos para botones de interfaz
+var prev_btn_start: bool = false
+var prev_btn_select: bool = false
 
 func _ready() -> void:
-	# Buscar referencia a FootballMechanics del jugador
+	pause_mode = Node.PAUSE_MODE_PROCESS
 	_resolve_mechanics()
-	
-	# Conectar con las porterías de la escena para capturar goles
+
+	# Conectar con las porterías para capturar goles durante los 90 minutos
 	var rival_goal = get_node_or_null("../RivalGoalArea")
 	var player_goal = get_node_or_null("../PlayerGoalArea")
 	
@@ -22,13 +36,188 @@ func _ready() -> void:
 		player_goal.connect("goal_scored", self, "_on_goal_scored")
 		
 	goal_notice_label.visible = false
-	_update_score_display()
+	if pause_panel:
+		pause_panel.visible = false
 
-func _process(_delta: float) -> void:
+	_update_tactic_display()
+	_update_clock_and_hud()
+
+func _process(delta: float) -> void:
+	# 1. Botón START: Pausar / Reanudar el partido
+	var start_pressed = Input.is_action_just_pressed("psp_start") or Input.is_key_pressed(KEY_ESCAPE) or Input.is_key_pressed(KEY_P) or (Input.is_joy_button_pressed(0, JOY_BUTTON_11) and not prev_btn_start)
+	if start_pressed and not prev_btn_start:
+		_toggle_pause()
+	prev_btn_start = Input.is_action_pressed("psp_start") or Input.is_key_pressed(KEY_ESCAPE) or Input.is_key_pressed(KEY_P) or Input.is_joy_button_pressed(0, JOY_BUTTON_11)
+
+	# Si el juego está pausado o el partido terminó, no avanzar el cronómetro
+	if get_tree().paused or match_finished:
+		return
+
+	# 2. Botón SELECT: Alternar Táctica rápida
+	var select_pressed = Input.is_action_just_pressed("psp_select") or Input.is_key_pressed(KEY_TAB) or Input.is_key_pressed(KEY_T) or (Input.is_joy_button_pressed(0, JOY_BUTTON_10) and not prev_btn_select)
+	if select_pressed and not prev_btn_select:
+		_cycle_tactic()
+	prev_btn_select = Input.is_action_pressed("psp_select") or Input.is_key_pressed(KEY_TAB) or Input.is_key_pressed(KEY_T) or Input.is_joy_button_pressed(0, JOY_BUTTON_10)
+
+	# 3. Avance del cronómetro de partido
+	real_elapsed_time += delta
+	_update_clock_and_hud()
+
+	# 4. Comprobar si se han cumplido los 90:00 minutos de partido (180 segundos reales)
+	if real_elapsed_time >= MATCH_DURATION_REAL:
+		_finish_match_90_minutes()
+
+func _toggle_pause() -> void:
+	if match_finished:
+		return
+	var new_pause = !get_tree().paused
+	get_tree().paused = new_pause
+	if pause_panel:
+		pause_panel.visible = new_pause
+	print("[PitchHUD] START presionado -> Partida ", "PAUSADA" if new_pause else "REANUDADA")
+
+func _cycle_tactic() -> void:
+	tactic_index = (tactic_index + 1) % 3
+	if mechanics and mechanics.has_method("set_team_tactic"):
+		mechanics.set_team_tactic(tactic_index)
+	_update_tactic_display()
+	print("[PitchHUD] SELECT: Táctica alternada a -> ", TACTIC_NAMES[tactic_index])
+
+func _update_tactic_display() -> void:
+	var mode_text = "Asistido"
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0 and "manual_aim_mode" in players[0]:
+		mode_text = "Manual" if players[0].manual_aim_mode else "Asistido"
+
+	tactic_label.text = "Táctica: [ %s ] (SELECT) | Modo: [ %s ] (L)" % [TACTIC_NAMES[tactic_index], mode_text]
+
+func _update_clock_and_hud() -> void:
+	# Cálculo de reloj: 1s real = 30s de partido
+	var clamped_real = min(MATCH_DURATION_REAL, real_elapsed_time)
+	var match_sec_total = int(clamped_real * 30.0)
+	var match_min = int(match_sec_total / 60)
+	var match_sec = int(match_sec_total % 60)
+
+	clock_label.text = "%02d:%02d" % [match_min, match_sec]
+
+	var p_score: int = 0
+	var opp_score: int = 0
+	if mechanics:
+		p_score = mechanics.get_player_score()
+		opp_score = mechanics.get_opponent_score()
+	else:
+		var rival_goal = get_node_or_null("../RivalGoalArea")
+		var player_goal = get_node_or_null("../PlayerGoalArea")
+		if rival_goal and "fallback_player_score" in rival_goal:
+			p_score = rival_goal.fallback_player_score
+		if player_goal and "fallback_opponent_score" in player_goal:
+			opp_score = player_goal.fallback_opponent_score
+
+	score_label.text = "MARCADOR: JUGADOR  [ %d ]  -  [ %d ]  RIVAL" % [p_score, opp_score]
+
+func _on_goal_scored(is_rival_goal: bool, _player_score: int, _opponent_score: int) -> void:
+	if match_finished:
+		return
+
+	if is_rival_goal:
+		goal_notice_label.text = "¡¡¡GOOOOLAZO DEL JUGADOR!!!"
+		goal_notice_label.modulate = Color(0.2, 1.0, 0.3)
+	else:
+		goal_notice_label.text = "¡¡¡GOL DEL RIVAL EN CONTRA!!!"
+		goal_notice_label.modulate = Color(1.0, 0.3, 0.2)
+
+	goal_notice_label.visible = true
+	_update_clock_and_hud()
+
+	# El partido cronometrado continúa hasta los 90 minutos reglamentarios
+	yield(get_tree().create_timer(1.8), "timeout")
 	if not match_finished:
-		if mechanics == null:
-			_resolve_mechanics()
-		_update_score_display()
+		goal_notice_label.visible = false
+
+func _finish_match_90_minutes() -> void:
+	match_finished = true
+
+	# 1. Detener el jugador y el balón
+	var players = get_tree().get_nodes_in_group("player")
+	for p in players:
+		if "can_move" in p:
+			p.can_move = false
+		if "velocity" in p:
+			p.velocity = Vector3.ZERO
+
+	var balls = get_tree().get_nodes_in_group("ball")
+	for b in balls:
+		if b is RigidBody:
+			b.linear_velocity = Vector3.ZERO
+			b.angular_velocity = Vector3.ZERO
+
+	# 2. Evaluar quién tiene más goles (Victoria, Empate o Derrota)
+	var p_score: int = 0
+	var opp_score: int = 0
+	if mechanics:
+		p_score = mechanics.get_player_score()
+		opp_score = mechanics.get_opponent_score()
+	else:
+		var rival_goal = get_node_or_null("../RivalGoalArea")
+		var player_goal = get_node_or_null("../PlayerGoalArea")
+		if rival_goal and "fallback_player_score" in rival_goal:
+			p_score = rival_goal.fallback_player_score
+		if player_goal and "fallback_opponent_score" in player_goal:
+			opp_score = player_goal.fallback_opponent_score
+
+	var result_title = ""
+	if p_score > opp_score:
+		result_title = "¡VICTORIA DEL CANTERANO!"
+		goal_notice_label.modulate = Color(0.2, 1.0, 0.3)
+	elif p_score == opp_score:
+		result_title = "¡EMPATE AL FINAL DE LOS 90 MINUTOS!"
+		goal_notice_label.modulate = Color(1.0, 0.9, 0.2)
+	else:
+		result_title = "¡DERROTA TRAS EL PITIDO FINAL!"
+		goal_notice_label.modulate = Color(1.0, 0.3, 0.2)
+
+	goal_notice_label.text = "%s\nMarcador Final: %d - %d (90:00)\nActualizando estadísticas en C++ y regresando..." % [
+		result_title, p_score, opp_score
+	]
+	goal_notice_label.visible = true
+
+	# 3. Actualizar estadísticas en C++ (apply_match_result)
+	if mechanics and mechanics.has_method("apply_match_result"):
+		mechanics.apply_match_result(p_score, opp_score)
+
+	if ClassDB.class_exists("GekitotsuStoryManager"):
+		var sm = null
+		if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
+			sm = ClassDB.instantiate("GekitotsuStoryManager")
+		elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
+			sm = ClassDB.instance("GekitotsuStoryManager")
+		if sm and sm.has_method("apply_match_result"):
+			sm.apply_match_result(p_score, opp_score)
+
+	# Respaldo persistente en el árbol de Godot
+	var cur_stats = get_tree().root.get_meta("gtp_stats") if get_tree().root.has_meta("gtp_stats") else {
+		"discipline": 0, "combat": 0, "money": 0, "reputation": 0, "day": 1
+	}
+	if p_score > opp_score:
+		cur_stats["discipline"] += 15
+		cur_stats["combat"] += 5
+		cur_stats["money"] += 250
+	elif p_score == opp_score:
+		cur_stats["discipline"] += 5
+		cur_stats["money"] += 50
+	else:
+		cur_stats["reputation"] += 10
+		cur_stats["combat"] += 5
+		cur_stats["money"] += 50
+	cur_stats["day"] += 1
+	get_tree().root.set_meta("gtp_stats", cur_stats)
+
+	print("[PitchHUD] Partido de 90 minutos concluido (%d - %d). Regresando a MainGame tras 2.5s..." % [p_score, opp_score])
+
+	# 4. Regreso a MainGame.tscn tras 2.5 segundos
+	yield(get_tree().create_timer(2.5), "timeout")
+	get_tree().paused = false
+	get_tree().change_scene("res://scenes/MainGame.tscn")
 
 func _resolve_mechanics() -> void:
 	var players = get_tree().get_nodes_in_group("player")
@@ -43,84 +232,3 @@ func _resolve_mechanics() -> void:
 		if node:
 			mechanics = node
 			return
-
-func _update_score_display() -> void:
-	var p_score: int = 0
-	var opp_score: int = 0
-	if mechanics:
-		p_score = mechanics.get_player_score()
-		opp_score = mechanics.get_opponent_score()
-	else:
-		var rival_goal = get_node_or_null("../RivalGoalArea")
-		var player_goal = get_node_or_null("../PlayerGoalArea")
-		if rival_goal and "fallback_player_score" in rival_goal:
-			p_score = rival_goal.fallback_player_score
-		if player_goal and "fallback_opponent_score" in player_goal:
-			opp_score = player_goal.fallback_opponent_score
-
-	score_label.text = "MARCADOR: JUGADOR  [ %d ]  -  [ %d ]  RIVAL\n(Primero a 3 Goles)" % [p_score, opp_score]
-
-func _on_goal_scored(is_rival_goal: bool, player_score: int, opponent_score: int) -> void:
-	if match_finished:
-		return
-
-	if is_rival_goal:
-		goal_notice_label.text = "¡¡¡GOOOOLAZO DEL JUGADOR!!!"
-		goal_notice_label.modulate = Color(0.2, 1.0, 0.3)
-	else:
-		goal_notice_label.text = "¡¡¡GOL DEL RIVAL EN CONTRA!!!"
-		goal_notice_label.modulate = Color(1.0, 0.3, 0.2)
-
-	goal_notice_label.visible = true
-	_update_score_display()
-
-	if player_score >= TARGET_GOALS or opponent_score >= TARGET_GOALS:
-		_finish_match(player_score, opponent_score)
-	else:
-		yield(get_tree().create_timer(1.6), "timeout")
-		if not match_finished:
-			goal_notice_label.visible = false
-
-func _finish_match(player_score: int, opponent_score: int) -> void:
-	match_finished = true
-	
-	var is_victory: bool = player_score > opponent_score
-	var victory_title: String = "¡VICTORIA DEL CANTERANO!" if is_victory else "¡FINAL DEL ENCUENTRO!"
-	goal_notice_label.modulate = Color(1.0, 0.9, 0.1)
-	goal_notice_label.text = "%s\nMarcador Final: %d - %d\nActualizando estadísticas en C++ y regresando..." % [
-		victory_title, player_score, opponent_score
-	]
-	goal_notice_label.visible = true
-
-	# 1. Actualizar estadísticas a través de FootballMechanics en C++
-	if mechanics and mechanics.has_method("apply_match_result"):
-		mechanics.apply_match_result(player_score, opponent_score)
-
-	# 2. Actualizar a través de GekitotsuStoryManager en C++
-	if ClassDB.class_exists("GekitotsuStoryManager"):
-		var sm = null
-		if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
-			sm = ClassDB.instantiate("GekitotsuStoryManager")
-		elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
-			sm = ClassDB.instance("GekitotsuStoryManager")
-		if sm and sm.has_method("apply_match_result"):
-			sm.apply_match_result(player_score, opponent_score)
-
-	# 3. Sincronizar respaldo persistente en el árbol de Godot
-	var cur_stats = get_tree().root.get_meta("gtp_stats") if get_tree().root.has_meta("gtp_stats") else {
-		"discipline": 0, "combat": 0, "money": 0, "reputation": 0, "day": 1
-	}
-	if is_victory:
-		cur_stats["discipline"] += 15
-		cur_stats["combat"] += 5
-		cur_stats["money"] += 250
-	else:
-		cur_stats["reputation"] += 10
-		cur_stats["combat"] += 5
-		cur_stats["money"] += 50
-	cur_stats["day"] += 1
-	get_tree().root.set_meta("gtp_stats", cur_stats)
-
-	print("[PitchHUD] Partido finalizado (3 goles). Estadísticas C++ actualizadas. Transicionando a MainGame...")
-	yield(get_tree().create_timer(2.2), "timeout")
-	get_tree().change_scene("res://scenes/MainGame.tscn")

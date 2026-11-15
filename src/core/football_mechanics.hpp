@@ -26,8 +26,11 @@ private:
     float base_kick_force = 16.0f;          // Fuerza base de patada / pase
     float max_kick_force = 28.0f;           // Fuerza máxima con carga completa
     float kick_stamina_cost = 8.0f;         // Coste base de estamina por patear
-    float short_pass_force = 9.0f;          // Fuerza suave para pase corto raso
+    float short_pass_force = 10.0f;         // Botón X: Pase corto raso
+    float lob_pass_force = 17.0f;           // Botón O: Centro / pase bombeado
+    float through_pass_force = 20.0f;       // Botón Δ: Pase en profundidad / al hueco
     float pass_stamina_cost = 4.0f;         // Menor consumo de estamina al pasar
+    int team_tactic = 0;                    // 0: Equilibrado, 1: Ofensivo, 2: Defensivo
 
     // Marcador de partido / Puntuación
     int player_score = 0;                   // Goles a favor (jugador)
@@ -41,9 +44,12 @@ public:
 
         if (is_moving) {
             float drain = is_sprinting ? stamina_sprint_drain_rate : stamina_drain_rate;
+            if (team_tactic == 1) drain *= 1.15f; // Táctica ofensiva consume más estamina
             stamina = std::max(0.0f, stamina - drain * delta);
         } else {
-            stamina = std::min(max_stamina, stamina + stamina_recovery_rate * delta);
+            float rec = stamina_recovery_rate;
+            if (team_tactic == 2) rec *= 1.25f; // Táctica defensiva recupera más rápido
+            stamina = std::min(max_stamina, stamina + rec * delta);
         }
     }
 
@@ -51,7 +57,8 @@ public:
         // Si no hay estamina, la velocidad decae a un 40% (estado de agotamiento)
         float fatigue_penalty = (stamina <= 0.0f) ? 0.4f : 1.0f;
         float sprint_bonus = is_sprinting && (stamina > 0.0f) ? sprint_multiplier : 1.0f;
-        return base_speed * sprint_bonus * fatigue_penalty;
+        float tactic_bonus = (team_tactic == 1) ? 1.08f : (team_tactic == 2 ? 0.95f : 1.0f);
+        return base_speed * sprint_bonus * fatigue_penalty * tactic_bonus;
     }
 
     /**
@@ -135,11 +142,20 @@ public:
     [[nodiscard]] float get_short_pass_force() const noexcept { return short_pass_force; }
     void set_short_pass_force(float force) noexcept { short_pass_force = std::max(1.0f, force); }
 
+    [[nodiscard]] float get_lob_pass_force() const noexcept { return lob_pass_force; }
+    void set_lob_pass_force(float force) noexcept { lob_pass_force = std::max(1.0f, force); }
+
+    [[nodiscard]] float get_through_pass_force() const noexcept { return through_pass_force; }
+    void set_through_pass_force(float force) noexcept { through_pass_force = std::max(1.0f, force); }
+
+    void set_team_tactic(int tactic) noexcept { team_tactic = std::clamp(tactic, 0, 2); }
+    [[nodiscard]] int get_team_tactic() const noexcept { return team_tactic; }
+
     [[nodiscard]] float get_pass_stamina_cost() const noexcept { return pass_stamina_cost; }
     void set_pass_stamina_cost(float cost) noexcept { pass_stamina_cost = std::max(0.0f, cost); }
 
     /**
-     * @brief Calcula el vector de fuerza 3D para un pase corto suave y raso.
+     * @brief Botón X: Calcula el vector de fuerza 3D para un pase corto suave y raso.
      */
     void calculate_pass_vector(float dir_x, float dir_z,
                               float& out_vx, float& out_vy, float& out_vz) const noexcept {
@@ -159,7 +175,55 @@ public:
 
         out_vx = dir_x * force;
         out_vz = dir_z * force;
-        out_vy = 0.1f; // A ras de cesped
+        out_vy = 0.08f; // Raso
+    }
+
+    /**
+     * @brief Botón O (Círculo): Pase bombeado / Centro con elevación moderada en Y.
+     */
+    void calculate_lob_pass_vector(float dir_x, float dir_z,
+                                  float& out_vx, float& out_vy, float& out_vz) const noexcept {
+        float len = std::sqrt(dir_x * dir_x + dir_z * dir_z);
+        if (len > 0.0001f) {
+            dir_x /= len;
+            dir_z /= len;
+        } else {
+            dir_x = 0.0f;
+            dir_z = -1.0f;
+        }
+
+        float force = lob_pass_force;
+        if (stamina < 30.0f) {
+            force *= (0.6f + 0.4f * (std::max(0.0f, stamina) / 30.0f));
+        }
+
+        out_vx = dir_x * force;
+        out_vz = dir_z * force;
+        out_vy = 4.2f; // Elevación moderada en Y para pase bombeado / centro
+    }
+
+    /**
+     * @brief Botón Δ (Triángulo): Pase en profundidad / al hueco rápido y raso hacia adelante.
+     */
+    void calculate_through_pass_vector(float dir_x, float dir_z,
+                                      float& out_vx, float& out_vy, float& out_vz) const noexcept {
+        float len = std::sqrt(dir_x * dir_x + dir_z * dir_z);
+        if (len > 0.0001f) {
+            dir_x /= len;
+            dir_z /= len;
+        } else {
+            dir_x = 0.0f;
+            dir_z = -1.0f;
+        }
+
+        float force = through_pass_force;
+        if (stamina < 30.0f) {
+            force *= (0.7f + 0.3f * (std::max(0.0f, stamina) / 30.0f));
+        }
+
+        out_vx = dir_x * force;
+        out_vz = dir_z * force;
+        out_vy = 0.05f; // Raso y rápido
     }
 
     void apply_match_result(int p_score, int opp_score) {
@@ -251,6 +315,8 @@ public:
     // Nuevos métodos de disparo y pateo
     Vector3 calculate_kick_force(double dir_x, double dir_z, double charge_ratio = 1.0);
     Vector3 calculate_pass_force(double dir_x, double dir_z);
+    Vector3 calculate_lob_pass(double dir_x, double dir_z);
+    Vector3 calculate_through_pass(double dir_x, double dir_z);
     double calculate_kick_force_magnitude(double charge_ratio = 1.0) const;
     double get_base_kick_force() const;
     void set_base_kick_force(double force);
@@ -258,6 +324,8 @@ public:
     void set_max_kick_force(double force);
     double get_short_pass_force() const;
     void set_short_pass_force(double force);
+    void set_team_tactic(int tactic);
+    int get_team_tactic() const;
 
     // Métodos de puntuación y marcador
     void score_goal_player();
@@ -357,6 +425,26 @@ public:
         float vx = 0.0f, vy = 0.0f, vz = 0.0f;
         physics.calculate_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
         return Vector3(static_cast<double>(vx), static_cast<double>(vy), static_cast<double>(vz));
+    }
+
+    [[nodiscard]] Vector3 calculate_lob_pass(double dir_x, double dir_z) const {
+        float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+        physics.calculate_lob_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
+        return Vector3(static_cast<double>(vx), static_cast<double>(vy), static_cast<double>(vz));
+    }
+
+    [[nodiscard]] Vector3 calculate_through_pass(double dir_x, double dir_z) const {
+        float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+        physics.calculate_through_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
+        return Vector3(static_cast<double>(vx), static_cast<double>(vy), static_cast<double>(vz));
+    }
+
+    void set_team_tactic(int tactic) {
+        physics.set_team_tactic(tactic);
+    }
+
+    [[nodiscard]] int get_team_tactic() const {
+        return physics.get_team_tactic();
     }
 
     [[nodiscard]] double calculate_kick_force_magnitude(double charge_ratio = 1.0) const {

@@ -220,6 +220,7 @@ collision_mask = 2
 shape = SubResource( 17 )
 
 [node name="PitchHUD" type="CanvasLayer" parent="."]
+pause_mode = 2
 script = ExtResource( 4 )
 
 [node name="HUDControl" type="Control" parent="PitchHUD"]
@@ -230,20 +231,89 @@ mouse_filter = 2
 [node name="ScorePanel" type="PanelContainer" parent="PitchHUD/HUDControl"]
 anchor_left = 0.5
 anchor_right = 0.5
-margin_left = -220.0
-margin_top = 18.0
-margin_right = 220.0
-margin_bottom = 78.0
+margin_left = -260.0
+margin_top = 16.0
+margin_right = 260.0
+margin_bottom = 96.0
 
-[node name="ScoreLabel" type="Label" parent="PitchHUD/HUDControl/ScorePanel"]
+[node name="VBox" type="VBoxContainer" parent="PitchHUD/HUDControl/ScorePanel"]
 margin_left = 7.0
-margin_top = 13.0
-margin_right = 433.0
-margin_bottom = 47.0
-text = "MARCADOR: JUGADOR  [ 0 ]  -  [ 0 ]  RIVAL
-(Primero a 3 Goles)"
+margin_top = 7.0
+margin_right = 513.0
+margin_bottom = 73.0
+alignment = 1
+
+[node name="ClockLabel" type="Label" parent="PitchHUD/HUDControl/ScorePanel/VBox"]
+margin_right = 506.0
+margin_bottom = 14.0
+text = "00:00"
 align = 1
 valign = 1
+
+[node name="ScoreLabel" type="Label" parent="PitchHUD/HUDControl/ScorePanel/VBox"]
+margin_top = 18.0
+margin_right = 506.0
+margin_bottom = 32.0
+text = "MARCADOR: JUGADOR  [ 0 ]  -  [ 0 ]  RIVAL"
+align = 1
+valign = 1
+
+[node name="TacticLabel" type="Label" parent="PitchHUD/HUDControl/ScorePanel/VBox"]
+margin_top = 36.0
+margin_right = 506.0
+margin_bottom = 50.0
+text = "Táctica: [ Equilibrado ] (SELECT) | Modo: [ Asistido ] (L)"
+align = 1
+valign = 1
+
+[node name="PausePanel" type="PanelContainer" parent="PitchHUD/HUDControl"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+margin_left = -250.0
+margin_top = -140.0
+margin_right = 250.0
+margin_bottom = 140.0
+
+[node name="PauseBox" type="VBoxContainer" parent="PitchHUD/HUDControl/PausePanel"]
+margin_left = 7.0
+margin_top = 7.0
+margin_right = 493.0
+margin_bottom = 273.0
+custom_constants/separation = 12
+alignment = 1
+
+[node name="PauseTitle" type="Label" parent="PitchHUD/HUDControl/PausePanel/PauseBox"]
+margin_top = 22.0
+margin_right = 486.0
+margin_bottom = 36.0
+text = "=== PARTIDO EN PAUSA (START) ==="
+align = 1
+
+[node name="PauseDetails" type="Label" parent="PitchHUD/HUDControl/PausePanel/PauseBox"]
+margin_top = 48.0
+margin_right = 486.0
+margin_bottom = 215.0
+text = "Controles estilo PPSSPP:
+• Movimiento: Cruceta analógica / D-Pad (WASD / Flechas)
+• Botón X (Cruz / J / Enter): Pase corto raso
+• Botón O (Círculo / L / C): Pase bombeado / Centro
+• Botón Δ (Triángulo / I / V): Pase en profundidad / hueco
+• Botón □ (Cuadrado / K / Espacio): Disparo a puerta
+• Gatillo R (Shift / E): Esprintar (mayor velocidad)
+• Gatillo L (Q): Cursor / Puntería manual
+• SELECT (Tab / T): Cambiar Táctica
+• START (Esc / P / Enter): Reanudar partido"
+align = 1
+
+[node name="PauseResumeHint" type="Label" parent="PitchHUD/HUDControl/PausePanel/PauseBox"]
+margin_top = 227.0
+margin_right = 486.0
+margin_bottom = 241.0
+text = "Presiona START o Esc para volver a la acción"
+align = 1
 
 [node name="GoalNoticeLabel" type="Label" parent="PitchHUD/HUDControl"]
 visible = false
@@ -266,6 +336,6 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 margin_top = -42.0
-text = "WASD / Flechas: Moverse | Shift: Sprint | Z / J: Pase Corto (Suave) | Espacio / K: Disparo Fuerte a Puerta"
+text = "PPSSPP: Cruz: Pase corto | O: Centro | Δ: Pase al hueco | □: Disparo | R: Sprint | L: Manual | SELECT: Táctica | START: Pausa"
 align = 1
 valign = 1

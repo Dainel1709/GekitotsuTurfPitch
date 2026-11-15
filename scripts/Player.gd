@@ -2,25 +2,35 @@ extends KinematicBody
 
 class_name Player
 
-# Referencia a la clase backend de C++ (FootballMechanics en GDExtension)
+# Referencia a la clase backend de C++ (FootballMechanics en GDExtension / GDNative)
 var mechanics = null
 
 # Configuración de Disparo y Balón
 export var fallback_base_kick_force: float = 16.0
 export var fallback_max_kick_force: float = 28.0
-export var fallback_pass_force: float = 9.0
-export var kick_reach: float = 1.65
+export var fallback_pass_force: float = 10.0
+export var fallback_lob_force: float = 17.0
+export var fallback_through_force: float = 20.0
+export var kick_reach: float = 1.75
 export var dribble_distance: float = 1.2
 export var charge_speed: float = 2.4 # Carga completa en ~0.42 segundos
 
-# Estado de Disparo y Balón
+# Estado de Controles PPSSPP y Balón
 var shot_charge: float = 0.0
 var is_charging: bool = false
-var pass_is_pressed: bool = false
-var facing_direction: Vector3 = Vector3(0.0, 0.0, -1.0) # Orientado hacia la portería rival (Z negativo)
+var manual_aim_mode: bool = false
+var can_move: bool = true
+
+var facing_direction: Vector3 = Vector3(0.0, 0.0, -1.0) # Orientado hacia portería rival (Z negativo)
 var ball_ref: RigidBody = null
 var is_colliding_with_ball: bool = false
 var is_ball_in_kick_area: bool = false
+
+# Detección de flancos para botones PPSSPP
+var prev_btn_cross: bool = false
+var prev_btn_circle: bool = false
+var prev_btn_triangle: bool = false
+var prev_btn_l: bool = false
 
 # Variables de respaldo local (Fallback si la librería nativa no está cargada)
 var fallback_base_speed: float = 10.0
@@ -50,38 +60,58 @@ func _ready() -> void:
 			print("[Player] Vinculado exitosamente con FootballMechanics (C++ Backend)")
 
 func _physics_process(delta: float) -> void:
+	if not can_move:
+		velocity = Vector3.ZERO
+		return
+
 	# 1. Resolver referencia al balón si es necesario
 	_resolve_ball_reference()
 
-	# 2. Capturar el input 2D (Flechas direccionales o WASD)
+	# 2. Captura de Movimiento estilo PPSSPP (Cruceta, Joystick Analógico, WASD, Flechas)
 	var input_2d := Vector2.ZERO
 
-	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP) or Input.is_action_pressed("ui_up"):
+	if Input.is_action_pressed("psp_up") or Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 		input_2d.y -= 1.0
-	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN) or Input.is_action_pressed("ui_down"):
+	if Input.is_action_pressed("psp_down") or Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 		input_2d.y += 1.0
-	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT) or Input.is_action_pressed("ui_left"):
+	if Input.is_action_pressed("psp_left") or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
 		input_2d.x -= 1.0
-	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT) or Input.is_action_pressed("ui_right"):
+	if Input.is_action_pressed("psp_right") or Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
 		input_2d.x += 1.0
 
-	var is_sprinting: bool = Input.is_key_pressed(KEY_SHIFT)
+	# Lectura del joystick analógico del gamepad
+	var joy_x = Input.get_joy_axis(0, JOY_AXIS_0)
+	var joy_y = Input.get_joy_axis(0, JOY_AXIS_1)
+	if abs(joy_x) > 0.2:
+		input_2d.x = joy_x
+	if abs(joy_y) > 0.2:
+		input_2d.y = joy_y
+
+	# Botón R: Esprintar (aumenta velocidad y drena más estamina en C++)
+	var is_sprinting: bool = Input.is_action_pressed("psp_r") or Input.is_key_pressed(KEY_SHIFT) or Input.is_key_pressed(KEY_E) or Input.is_joy_button_pressed(0, JOY_BUTTON_5)
+
+	# Botón L: Alternar modo de puntería manual / asistida
+	var btn_l_pressed = Input.is_action_just_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or (Input.is_joy_button_pressed(0, JOY_BUTTON_4) and not prev_btn_l)
+	if btn_l_pressed and not prev_btn_l:
+		manual_aim_mode = !manual_aim_mode
+		print("[Player] Botón L: Modo Manual alternado -> ", "MANUAL" if manual_aim_mode else "ASISTIDO")
+	prev_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
 
 	# Normalizar input diagonal
 	if input_2d.length_squared() > 1.0:
 		input_2d = input_2d.normalized()
 
-	# 3. Transformar input 2D en movimiento 3D restringido a los ejes X y Z (Y = 0)
+	# 3. Transformar input 2D en movimiento 3D restringido a X y Z (Y = 0)
 	var move_direction := Vector3(input_2d.x, 0.0, input_2d.y)
 	var is_moving: bool = move_direction.length_squared() > 0.001
 
 	if is_moving:
 		facing_direction = move_direction.normalized()
 
-	# 4. Gestión de Pase Corto (Z/J) y Disparo Fuerte (Espacio/K)
-	_handle_pass_and_shot(delta)
+	# 4. Procesamiento de acciones PPSSPP (Cruz, Círculo, Triángulo, Cuadrado)
+	_handle_ppsspp_actions(delta)
 
-	# 5. Conexión con el backend de C++ para velocidad y drenaje de estamina
+	# 5. Cálculo de velocidad y estamina con backend C++
 	var current_speed: float = 0.0
 
 	if mechanics:
@@ -100,18 +130,17 @@ func _physics_process(delta: float) -> void:
 		var sprint_mult: float = 1.6 if (is_sprinting and fallback_stamina > 0.0) else 1.0
 		current_speed = fallback_base_speed * sprint_mult * fatigue
 
-	# Reducción de velocidad mientras prepara un tiro cargado
+	# Reducción de velocidad mientras prepara un tiro cargado con Botón Cuadrado
 	if is_charging:
 		current_speed *= 0.65
 
-	# Aplicar velocidad solo a X y Z (Y = 0)
 	velocity.x = move_direction.x * current_speed
 	velocity.y = 0.0
 	velocity.z = move_direction.z * current_speed
 
 	velocity = move_and_slide(velocity, Vector3.UP)
 
-	# 6. Detección de colisión directa con el balón mediante move_and_slide
+	# 6. Conducción suave de balón al contacto
 	is_colliding_with_ball = false
 	var slide_count = get_slide_count()
 	for i in range(slide_count):
@@ -120,19 +149,178 @@ func _physics_process(delta: float) -> void:
 			is_colliding_with_ball = true
 			if col.collider is RigidBody:
 				ball_ref = col.collider as RigidBody
-				
-				# Conducción / empuje suave arcade al avanzar sobre el balón
 				if not is_charging and velocity.length_squared() > 0.1:
 					var push_dir = -col.normal
 					push_dir.y = 0.0
 					var push_impulse = push_dir.normalized() * (velocity.length() * 0.35)
 					ball_ref.apply_central_impulse(push_impulse)
 
-	# Rotar hacia la dirección de avance
+	# Orientar rotación hacia la dirección de avance
 	if is_moving:
 		var target_pos: Vector3 = translation + move_direction
 		target_pos.y = translation.y
 		look_at(target_pos, Vector3.UP)
+
+func _handle_ppsspp_actions(delta: float) -> void:
+	# --- 1. Botón X (Cruz - Pase Corto raso y preciso) ---
+	var cur_btn_cross = Input.is_action_pressed("psp_cross") or Input.is_key_pressed(KEY_J) or Input.is_key_pressed(KEY_X) or Input.is_joy_button_pressed(0, JOY_BUTTON_0)
+	if cur_btn_cross and not prev_btn_cross:
+		_execute_short_pass()
+	prev_btn_cross = cur_btn_cross
+
+	# --- 2. Botón O (Círculo - Centro / Pase Bombeado con elevación en Y) ---
+	var cur_btn_circle = Input.is_action_pressed("psp_circle") or Input.is_key_pressed(KEY_L) or Input.is_key_pressed(KEY_C) or Input.is_joy_button_pressed(0, JOY_BUTTON_1)
+	if cur_btn_circle and not prev_btn_circle:
+		_execute_lob_pass()
+	prev_btn_circle = cur_btn_circle
+
+	# --- 3. Botón Δ (Triángulo - Pase en profundidad / al hueco rápido) ---
+	var cur_btn_triangle = Input.is_action_pressed("psp_triangle") or Input.is_key_pressed(KEY_I) or Input.is_key_pressed(KEY_V) or Input.is_joy_button_pressed(0, JOY_BUTTON_3)
+	if cur_btn_triangle and not prev_btn_triangle:
+		_execute_through_pass()
+	prev_btn_triangle = cur_btn_triangle
+
+	# --- 4. Botón □ (Cuadrado - Disparo / Remate potente a puerta) ---
+	var shoot_pressed: bool = Input.is_action_pressed("psp_square") or Input.is_key_pressed(KEY_K) or Input.is_key_pressed(KEY_SPACE) or Input.is_joy_button_pressed(0, JOY_BUTTON_2)
+
+	if shoot_pressed:
+		is_charging = true
+		shot_charge = min(1.0, shot_charge + charge_speed * delta)
+	else:
+		if is_charging:
+			_execute_kick()
+			is_charging = false
+			shot_charge = 0.0
+
+func _get_action_direction() -> Vector3:
+	var dir = facing_direction
+	if manual_aim_mode:
+		return dir
+
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return dir
+
+	var dist_to_ball = translation.distance_to(ball_ref.translation)
+	if velocity.length_squared() > 1.0:
+		dir = (facing_direction * 0.7 + velocity.normalized() * 0.3).normalized()
+	elif dist_to_ball > 0.01:
+		var to_ball = (ball_ref.global_transform.origin - global_transform.origin)
+		to_ball.y = 0.0
+		if to_ball.length_squared() > 0.01:
+			dir = (facing_direction * 0.4 + to_ball.normalized() * 0.6).normalized()
+
+	return dir
+
+func _can_kick_ball() -> bool:
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return false
+	var dist_to_ball = translation.distance_to(ball_ref.translation)
+	return is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach
+
+# --- Botón X: Pase Corto Raso ---
+func _execute_short_pass() -> void:
+	if not _can_kick_ball():
+		return
+
+	var pass_dir = _get_action_direction()
+	var pass_impulse: Vector3 = Vector3.ZERO
+
+	if mechanics and mechanics.has_method("calculate_pass_force"):
+		var res = mechanics.calculate_pass_force(pass_dir.x, pass_dir.z)
+		if typeof(res) == TYPE_VECTOR3:
+			pass_impulse = res
+		else:
+			pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.08, pass_dir.z * fallback_pass_force)
+	else:
+		pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.08, pass_dir.z * fallback_pass_force)
+
+	ball_ref.apply_central_impulse(pass_impulse)
+	drain_stamina(4.0)
+	print("[PPSSPP] Botón X (Cruz): Pase corto ejecutado -> ", pass_impulse)
+
+# --- Botón O: Centro / Pase Bombeado ---
+func _execute_lob_pass() -> void:
+	if not _can_kick_ball():
+		return
+
+	var pass_dir = _get_action_direction()
+	var lob_impulse: Vector3 = Vector3.ZERO
+
+	if mechanics and mechanics.has_method("calculate_lob_pass"):
+		var res = mechanics.calculate_lob_pass(pass_dir.x, pass_dir.z)
+		if typeof(res) == TYPE_VECTOR3:
+			lob_impulse = res
+		else:
+			lob_impulse = Vector3(pass_dir.x * fallback_lob_force, 4.2, pass_dir.z * fallback_lob_force)
+	else:
+		lob_impulse = Vector3(pass_dir.x * fallback_lob_force, 4.2, pass_dir.z * fallback_lob_force)
+
+	ball_ref.apply_central_impulse(lob_impulse)
+	drain_stamina(6.0)
+	print("[PPSSPP] Botón O (Círculo): Pase bombeado / Centro ejecutado -> ", lob_impulse)
+
+# --- Botón Δ: Pase en Profundidad / al Hueco ---
+func _execute_through_pass() -> void:
+	if not _can_kick_ball():
+		return
+
+	var pass_dir = _get_action_direction()
+	var through_impulse: Vector3 = Vector3.ZERO
+
+	if mechanics and mechanics.has_method("calculate_through_pass"):
+		var res = mechanics.calculate_through_pass(pass_dir.x, pass_dir.z)
+		if typeof(res) == TYPE_VECTOR3:
+			through_impulse = res
+		else:
+			through_impulse = Vector3(pass_dir.x * fallback_through_force, 0.05, pass_dir.z * fallback_through_force)
+	else:
+		through_impulse = Vector3(pass_dir.x * fallback_through_force, 0.05, pass_dir.z * fallback_through_force)
+
+	ball_ref.apply_central_impulse(through_impulse)
+	drain_stamina(7.0)
+	print("[PPSSPP] Botón Δ (Triángulo): Pase en profundidad ejecutado -> ", through_impulse)
+
+# --- Botón □: Disparo / Remate a Portería ---
+func _execute_kick() -> void:
+	if not _can_kick_ball():
+		return
+
+	var kick_dir = _get_action_direction()
+	var kick_impulse: Vector3 = _calculate_kick_vector(kick_dir, shot_charge)
+
+	ball_ref.apply_central_impulse(kick_impulse)
+	var stamina_cost = 8.0 + shot_charge * 14.0
+	drain_stamina(stamina_cost)
+	print("[PPSSPP] Botón □ (Cuadrado): Disparo ejecutado -> Potencia: ", stepify(shot_charge * 100, 1), "% | Vector: ", kick_impulse)
+
+func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
+	if mechanics:
+		if mechanics.has_method("calculate_kick_force"):
+			var res = mechanics.calculate_kick_force(kick_dir.x, kick_dir.z, charge)
+			if typeof(res) == TYPE_VECTOR3:
+				return res
+			elif typeof(res) == TYPE_REAL or typeof(res) == TYPE_INT:
+				var mag = float(res)
+				var vy = min(1.6, mag * (0.04 + 0.05 * charge))
+				return Vector3(kick_dir.x * mag, vy, kick_dir.z * mag)
+
+	var charge_clamped = clamp(charge, 0.0, 1.0)
+	var raw_force = fallback_base_kick_force + (fallback_max_kick_force - fallback_base_kick_force) * charge_clamped
+	var stamina_ratio = fallback_stamina / fallback_max_stamina
+	var stamina_factor = 1.0 if stamina_ratio >= 0.3 else (0.5 + 0.5 * (stamina_ratio / 0.3))
+	var final_force = raw_force * stamina_factor
+	var vy = min(1.6, final_force * (0.04 + 0.05 * charge_clamped))
+	return Vector3(kick_dir.x * final_force, vy, kick_dir.z * final_force)
+
+func drain_stamina(amount: float) -> void:
+	if mechanics:
+		if mechanics.has_method("drain_stamina"):
+			mechanics.drain_stamina(amount)
+		else:
+			var cur = mechanics.get_stamina()
+			mechanics.set_stamina(max(0.0, cur - amount))
+	else:
+		fallback_stamina = max(0.0, fallback_stamina - amount)
 
 func _on_kick_area_body_entered(body: Node) -> void:
 	if body.is_in_group("ball"):
@@ -152,137 +340,11 @@ func _resolve_ball_reference() -> void:
 				ball_ref = b
 				break
 
-func _handle_pass_and_shot(delta: float) -> void:
-	# 1. Detección de Pase Corto (Tecla Z o J - impulso suave)
-	var pass_pressed_now = Input.is_key_pressed(KEY_Z) or Input.is_key_pressed(KEY_J)
-	if pass_pressed_now and not pass_is_pressed:
-		_execute_pass()
-	pass_is_pressed = pass_pressed_now
-
-	# 2. Detección de Disparo Fuerte a Puerta (Barra Espaciadora o Tecla K)
-	var shoot_pressed: bool = Input.is_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_K) or Input.is_action_pressed("ui_select") or Input.is_action_pressed("ui_accept")
-
-	if shoot_pressed:
-		is_charging = true
-		shot_charge = min(1.0, shot_charge + charge_speed * delta)
-	else:
-		if is_charging:
-			# Disparar al soltar la tecla
-			_execute_kick()
-			is_charging = false
-			shot_charge = 0.0
-
-func _execute_pass() -> void:
-	if not ball_ref or not is_instance_valid(ball_ref):
-		return
-
-	var dist_to_ball = translation.distance_to(ball_ref.translation)
-	# Puede pasar si está en contacto por colisión, dentro del área frontal o en rango de distancia
-	if is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach:
-		var pass_dir = facing_direction
-		if velocity.length_squared() > 1.0:
-			pass_dir = (facing_direction * 0.7 + velocity.normalized() * 0.3).normalized()
-		elif dist_to_ball > 0.01:
-			var to_ball = (ball_ref.global_transform.origin - global_transform.origin)
-			to_ball.y = 0.0
-			if to_ball.length_squared() > 0.01:
-				pass_dir = (facing_direction * 0.4 + to_ball.normalized() * 0.6).normalized()
-
-		var pass_impulse: Vector3 = Vector3.ZERO
-		if mechanics and mechanics.has_method("calculate_pass_force"):
-			var res = mechanics.calculate_pass_force(pass_dir.x, pass_dir.z)
-			if typeof(res) == TYPE_VECTOR3:
-				pass_impulse = res
-			elif typeof(res) == TYPE_REAL or typeof(res) == TYPE_INT:
-				var mag = float(res)
-				pass_impulse = Vector3(pass_dir.x * mag, 0.1, pass_dir.z * mag)
-			else:
-				pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.1, pass_dir.z * fallback_pass_force)
-		else:
-			pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.1, pass_dir.z * fallback_pass_force)
-
-		ball_ref.apply_central_impulse(pass_impulse)
-		drain_stamina(4.0)
-		print("[Player] ¡Pase corto ejecutado con Z/J! Vector impulso suave: ", pass_impulse)
-
-func _execute_kick() -> void:
-	if not ball_ref or not is_instance_valid(ball_ref):
-		return
-
-	var dist_to_ball = translation.distance_to(ball_ref.translation)
-	# Puede patear si está en contacto por colisión, dentro del área frontal o en rango de distancia
-	if is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach:
-		# Dirección del disparo
-		var kick_dir = facing_direction
-		if velocity.length_squared() > 1.0:
-			kick_dir = (facing_direction * 0.7 + velocity.normalized() * 0.3).normalized()
-		elif dist_to_ball > 0.01:
-			var to_ball = (ball_ref.global_transform.origin - global_transform.origin)
-			to_ball.y = 0.0
-			if to_ball.length_squared() > 0.01:
-				kick_dir = (facing_direction * 0.5 + to_ball.normalized() * 0.5).normalized()
-
-		# Obtener vector de fuerza calculado por el backend de C++
-		var kick_impulse: Vector3 = _calculate_kick_vector(kick_dir, shot_charge)
-
-		# Aplicar impulso central al RigidBody del balón
-		ball_ref.apply_central_impulse(kick_impulse)
-
-		# Drenar estamina por el esfuerzo físico de la patada
-		var stamina_cost = 7.0 + shot_charge * 13.0
-		drain_stamina(stamina_cost)
-
-		print("[Player] ¡Patada ejecutada! Vector impulso: ", kick_impulse, " | Carga: ", stepify(shot_charge * 100, 1), "%")
-
-func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
-	if mechanics:
-		# Llamar al método C++ calculate_kick_force
-		if mechanics.has_method("calculate_kick_force"):
-			var res = mechanics.calculate_kick_force(kick_dir.x, kick_dir.z, charge)
-			if typeof(res) == TYPE_VECTOR3:
-				return res
-			elif typeof(res) == TYPE_REAL or typeof(res) == TYPE_INT:
-				var mag = float(res)
-				var vy = min(1.6, mag * (0.04 + 0.05 * charge))
-				return Vector3(kick_dir.x * mag, vy, kick_dir.z * mag)
-		elif mechanics.has_method("calculate_kick_force_magnitude"):
-			var mag = mechanics.calculate_kick_force_magnitude(charge)
-			var vy = min(1.6, mag * (0.04 + 0.05 * charge))
-			return Vector3(kick_dir.x * mag, vy, kick_dir.z * mag)
-
-	# Fallback si no está cargada la DLL nativa
-	var charge_clamped = clamp(charge, 0.0, 1.0)
-	var raw_force = fallback_base_kick_force + (fallback_max_kick_force - fallback_base_kick_force) * charge_clamped
-	var stamina_ratio = fallback_stamina / fallback_max_stamina
-	var stamina_factor = 1.0 if stamina_ratio >= 0.3 else (0.5 + 0.5 * (stamina_ratio / 0.3))
-	var final_force = raw_force * stamina_factor
-	var vy = min(1.6, final_force * (0.04 + 0.05 * charge_clamped))
-	return Vector3(kick_dir.x * final_force, vy, kick_dir.z * final_force)
-
-func drain_stamina(amount: float) -> void:
-	if mechanics:
-		if mechanics.has_method("drain_stamina"):
-			mechanics.drain_stamina(amount)
-		else:
-			var cur = mechanics.get_stamina()
-			mechanics.set_stamina(max(0.0, cur - amount))
-	else:
-		fallback_stamina = max(0.0, fallback_stamina - amount)
-
-# --- Métodos Públicos para Consulta y UI/HUD ---
-
 func get_shot_charge() -> float:
 	return shot_charge
 
 func is_charging_shot() -> bool:
 	return is_charging
-
-func is_ball_in_range() -> bool:
-	if is_colliding_with_ball or is_ball_in_kick_area:
-		return true
-	if ball_ref and is_instance_valid(ball_ref):
-		return translation.distance_to(ball_ref.translation) <= kick_reach
-	return false
 
 func get_stamina() -> float:
 	if mechanics:

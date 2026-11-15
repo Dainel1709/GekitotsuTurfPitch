@@ -25,6 +25,8 @@ void FootballMechanics::_bind_methods() {
     // Métodos para cálculo de fuerza y vector de disparo / patada
     ClassDB::bind_method(D_METHOD("calculate_kick_force", "dir_x", "dir_z", "charge_ratio"), &FootballMechanics::calculate_kick_force, DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("calculate_pass_force", "dir_x", "dir_z"), &FootballMechanics::calculate_pass_force);
+    ClassDB::bind_method(D_METHOD("calculate_lob_pass", "dir_x", "dir_z"), &FootballMechanics::calculate_lob_pass);
+    ClassDB::bind_method(D_METHOD("calculate_through_pass", "dir_x", "dir_z"), &FootballMechanics::calculate_through_pass);
     ClassDB::bind_method(D_METHOD("calculate_kick_force_magnitude", "charge_ratio"), &FootballMechanics::calculate_kick_force_magnitude, DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("get_base_kick_force"), &FootballMechanics::get_base_kick_force);
     ClassDB::bind_method(D_METHOD("set_base_kick_force", "force"), &FootballMechanics::set_base_kick_force);
@@ -32,6 +34,8 @@ void FootballMechanics::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_max_kick_force", "force"), &FootballMechanics::set_max_kick_force);
     ClassDB::bind_method(D_METHOD("get_short_pass_force"), &FootballMechanics::get_short_pass_force);
     ClassDB::bind_method(D_METHOD("set_short_pass_force", "force"), &FootballMechanics::set_short_pass_force);
+    ClassDB::bind_method(D_METHOD("set_team_tactic", "tactic"), &FootballMechanics::set_team_tactic);
+    ClassDB::bind_method(D_METHOD("get_team_tactic"), &FootballMechanics::get_team_tactic);
 
     // Métodos para el sistema de marcador y goles
     ClassDB::bind_method(D_METHOD("score_goal_player"), &FootballMechanics::score_goal_player);
@@ -136,6 +140,26 @@ Vector3 FootballMechanics::calculate_pass_force(double dir_x, double dir_z) {
     float vx = 0.0f, vy = 0.0f, vz = 0.0f;
     physics.calculate_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
     return Vector3(static_cast<real_t>(vx), static_cast<real_t>(vy), static_cast<real_t>(vz));
+}
+
+Vector3 FootballMechanics::calculate_lob_pass(double dir_x, double dir_z) {
+    float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+    physics.calculate_lob_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
+    return Vector3(static_cast<real_t>(vx), static_cast<real_t>(vy), static_cast<real_t>(vz));
+}
+
+Vector3 FootballMechanics::calculate_through_pass(double dir_x, double dir_z) {
+    float vx = 0.0f, vy = 0.0f, vz = 0.0f;
+    physics.calculate_through_pass_vector(static_cast<float>(dir_x), static_cast<float>(dir_z), vx, vy, vz);
+    return Vector3(static_cast<real_t>(vx), static_cast<real_t>(vy), static_cast<real_t>(vz));
+}
+
+void FootballMechanics::set_team_tactic(int tactic) {
+    physics.set_team_tactic(tactic);
+}
+
+int FootballMechanics::get_team_tactic() const {
+    return physics.get_team_tactic();
 }
 
 double FootballMechanics::get_short_pass_force() const {

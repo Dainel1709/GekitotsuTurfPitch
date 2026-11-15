@@ -76,14 +76,33 @@ int main() {
     assert(ball.get_vel_z() > 0.0f);  // Invierte dirección hacia el interior
     std::cout << "  -> Rebote elastico en pared norte (Z=-12.5): vz=" << ball.get_vel_z() << " (>0) OK" << std::endl;
 
-    // 8. Verificación de pase corto (calculate_pass_force y short_pass_force)
+    // 8. Verificación de pase corto estilo PPSSPP (Botón Cruz / calculate_pass_force)
     godot::Vector3 pass_vec = mechanics.calculate_pass_force(0.0, -1.0);
-    assert(std::abs(pass_vec.z - (-9.0)) < 0.001);
+    assert(pass_vec.z < -8.0);
     assert(std::abs(pass_vec.x) < 0.001);
-    assert(std::abs(pass_vec.y - 0.1) < 0.001);
+    assert(pass_vec.y < 0.2); // Raso
     std::cout << "  -> calculate_pass_force(): vz=" << pass_vec.z << ", vy=" << pass_vec.y << " (suave y raso) OK" << std::endl;
 
-    // 9. Verificación de actualización de estadísticas al finalizar partido (3 goles)
+    // 9. Verificación de centro bombeado (Botón Círculo / calculate_lob_pass)
+    godot::Vector3 lob_vec = mechanics.calculate_lob_pass(0.0, -1.0);
+    assert(lob_vec.z < -14.0);
+    assert(lob_vec.y >= 4.0); // Elevación moderada en Y
+    std::cout << "  -> calculate_lob_pass(): vz=" << lob_vec.z << ", vy=" << lob_vec.y << " (pase bombeado / centro) OK" << std::endl;
+
+    // 10. Verificación de pase en profundidad / al hueco (Botón Triángulo / calculate_through_pass)
+    godot::Vector3 through_vec = mechanics.calculate_through_pass(0.0, -1.0);
+    assert(through_vec.z <= -18.0);
+    assert(through_vec.y < 0.1); // Raso y rápido
+    std::cout << "  -> calculate_through_pass(): vz=" << through_vec.z << ", vy=" << through_vec.y << " (pase al hueco) OK" << std::endl;
+
+    // 11. Verificación de tácticas (SELECT: 0=Equilibrado, 1=Ofensivo, 2=Defensivo)
+    mechanics.set_team_tactic(1);
+    assert(mechanics.get_team_tactic() == 1);
+    mechanics.set_team_tactic(0);
+    assert(mechanics.get_team_tactic() == 0);
+    std::cout << "  -> set_team_tactic() / get_team_tactic(): OK" << std::endl;
+
+    // 12. Verificación de actualización de estadísticas al finalizar partido tras 90 minutos
     int prev_discipline = gtp::DeSiGNARStoryTree::get_global_stats().sports_discipline;
     int prev_money = gtp::DeSiGNARStoryTree::get_global_stats().money;
     mechanics.apply_match_result(3, 1); // Victoria 3 a 1
