@@ -5,6 +5,7 @@ onready var left_button = $VBoxContainer/LeftButton
 onready var right_button = $VBoxContainer/RightButton
 onready var stats_label = $VBoxContainer/StatsLabel
 onready var match_button = $VBoxContainer/MatchButton
+onready var fight_button = $VBoxContainer/FightButton if has_node("VBoxContainer/FightButton") else null
 
 var story_manager = null
 
@@ -13,6 +14,8 @@ func _ready() -> void:
 	right_button.connect("pressed", self, "_on_right_choice_pressed")
 	if match_button:
 		match_button.connect("pressed", self, "_on_match_pressed")
+	if fight_button:
+		fight_button.connect("pressed", self, "_on_fight_pressed")
 	
 	# Enlace dinámico con la clase C++ GekitotsuStoryManager expuesta por GDExtension / GDNative
 	if ClassDB.class_exists("GekitotsuStoryManager"):
@@ -99,3 +102,6 @@ func _on_right_choice_pressed() -> void:
 
 func _on_match_pressed() -> void:
 	get_tree().change_scene("res://scenes/FootballPitch.tscn")
+
+func _on_fight_pressed() -> void:
+	get_tree().change_scene("res://scenes/FightArena.tscn")

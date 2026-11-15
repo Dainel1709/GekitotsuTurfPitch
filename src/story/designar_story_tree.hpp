@@ -225,6 +225,24 @@ public:
         stats.current_day++;
     }
 
+    /**
+     * @brief Aplica las consecuencias de una pelea callejera en las estadísticas del canterano.
+     * Si gana: suma técnica de combate (+15) y reputación callejera (+20), además de dinero (+150).
+     * Si pierde: resta disciplina deportiva (-10) y energía/salud (-25), adquiriendo experiencia urbana (+5 reputación).
+     */
+    void apply_fight_result(bool player_won) {
+        if (player_won) {
+            stats.combat_technique += 15;
+            stats.street_reputation += 20;
+            stats.money += 150;
+        } else {
+            stats.sports_discipline = std::max(0, stats.sports_discipline - 10);
+            stats.energy = std::max(0, stats.energy - 25);
+            stats.street_reputation += 5;
+        }
+        stats.current_day++;
+    }
+
     void add_sports_discipline(int amount) noexcept { stats.sports_discipline += amount; }
     void add_street_reputation(int amount) noexcept { stats.street_reputation += amount; }
     void add_combat_technique(int amount) noexcept { stats.combat_technique += amount; }

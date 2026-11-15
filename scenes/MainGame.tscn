@@ -61,3 +61,11 @@ margin_bottom = 440.0
 rect_min_size = Vector2( 0, 50 )
 size_flags_horizontal = 3
 text = "Saltar al Terreno de Juego (Partido de Fútbol)"
+
+[node name="FightButton" type="Button" parent="VBoxContainer"]
+margin_top = 460.0
+margin_right = 904.0
+margin_bottom = 510.0
+rect_min_size = Vector2( 0, 50 )
+size_flags_horizontal = 3
+text = "Entrar al Callejón (Pelea Callejera 1 vs 1)"

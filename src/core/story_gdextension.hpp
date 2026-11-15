@@ -34,6 +34,7 @@ protected:
         ClassDB::bind_method(D_METHOD("get_current_day"), &GekitotsuStoryManager::get_current_day);
         ClassDB::bind_method(D_METHOD("is_career_over"), &GekitotsuStoryManager::is_career_over);
         ClassDB::bind_method(D_METHOD("apply_match_result", "player_goals", "opponent_goals"), &GekitotsuStoryManager::apply_match_result);
+        ClassDB::bind_method(D_METHOD("apply_fight_result", "player_won"), &GekitotsuStoryManager::apply_fight_result);
     }
 
 public:
@@ -105,6 +106,10 @@ public:
 
     void apply_match_result(int player_goals, int opponent_goals) {
         controller.apply_match_result(player_goals, opponent_goals);
+    }
+
+    void apply_fight_result(bool player_won) {
+        controller.apply_fight_result(player_won);
     }
 };
 
@@ -187,6 +192,10 @@ public:
 
     void apply_match_result(int player_goals, int opponent_goals) {
         controller.apply_match_result(player_goals, opponent_goals);
+    }
+
+    void apply_fight_result(bool player_won) {
+        controller.apply_fight_result(player_won);
     }
 };
 

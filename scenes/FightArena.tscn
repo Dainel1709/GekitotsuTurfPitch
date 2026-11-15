@@ -1,0 +1,267 @@
+[gd_scene load_steps=6 format=2]
+
+[ext_resource path="res://scripts/FightArena.gd" type="Script" id=1]
+[ext_resource path="res://scripts/Fighter.gd" type="Script" id=2]
+
+[sub_resource type="RectangleShape2D" id=1]
+extents = Vector2( 512, 30 )
+
+[sub_resource type="RectangleShape2D" id=2]
+extents = Vector2( 20, 50 )
+
+[sub_resource type="RectangleShape2D" id=3]
+extents = Vector2( 20, 300 )
+
+[node name="FightArena" type="Node2D"]
+script = ExtResource( 1 )
+
+[node name="Environment" type="Node2D" parent="."]
+
+[node name="SkyBackground" type="ColorRect" parent="Environment"]
+margin_right = 1024.0
+margin_bottom = 600.0
+color = Color( 0.0784314, 0.0784314, 0.121569, 1 )
+
+[node name="Building1" type="ColorRect" parent="Environment"]
+margin_left = 60.0
+margin_top = 130.0
+margin_right = 240.0
+margin_bottom = 480.0
+color = Color( 0.121569, 0.121569, 0.180392, 1 )
+
+[node name="Building2" type="ColorRect" parent="Environment"]
+margin_left = 290.0
+margin_top = 80.0
+margin_right = 510.0
+margin_bottom = 480.0
+color = Color( 0.101961, 0.101961, 0.152941, 1 )
+
+[node name="Building3" type="ColorRect" parent="Environment"]
+margin_left = 570.0
+margin_top = 140.0
+margin_right = 760.0
+margin_bottom = 480.0
+color = Color( 0.133333, 0.133333, 0.203922, 1 )
+
+[node name="Building4" type="ColorRect" parent="Environment"]
+margin_left = 810.0
+margin_top = 100.0
+margin_right = 970.0
+margin_bottom = 480.0
+color = Color( 0.109804, 0.109804, 0.164706, 1 )
+
+[node name="Asphalt" type="ColorRect" parent="Environment"]
+margin_top = 480.0
+margin_right = 1024.0
+margin_bottom = 600.0
+color = Color( 0.180392, 0.180392, 0.203922, 1 )
+
+[node name="Curb" type="ColorRect" parent="Environment"]
+margin_top = 475.0
+margin_right = 1024.0
+margin_bottom = 481.0
+color = Color( 0.411765, 0.411765, 0.45098, 1 )
+
+[node name="FloorBody" type="StaticBody2D" parent="Environment"]
+position = Vector2( 512, 510 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Environment/FloorBody"]
+shape = SubResource( 1 )
+
+[node name="LeftWall" type="StaticBody2D" parent="Environment"]
+position = Vector2( -10, 300 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Environment/LeftWall"]
+shape = SubResource( 3 )
+
+[node name="RightWall" type="StaticBody2D" parent="Environment"]
+position = Vector2( 1034, 300 )
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Environment/RightWall"]
+shape = SubResource( 3 )
+
+[node name="Player" type="KinematicBody2D" parent="." groups=["fighters", "player"]]
+position = Vector2( 260, 475 )
+script = ExtResource( 2 )
+fighter_name = "Ryu Hayama"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+position = Vector2( 0, -50 )
+shape = SubResource( 2 )
+
+[node name="Visual" type="Node2D" parent="Player"]
+
+[node name="Head" type="ColorRect" parent="Player/Visual"]
+margin_left = -14.0
+margin_top = -102.0
+margin_right = 14.0
+margin_bottom = -80.0
+color = Color( 0.901961, 0.752941, 0.65098, 1 )
+
+[node name="Body" type="ColorRect" parent="Player/Visual"]
+margin_left = -18.0
+margin_top = -80.0
+margin_right = 18.0
+margin_bottom = -20.0
+color = Color( 0.203922, 0.501961, 0.94902, 1 )
+
+[node name="Legs" type="ColorRect" parent="Player/Visual"]
+margin_left = -16.0
+margin_top = -20.0
+margin_right = 16.0
+margin_bottom = 0.0
+color = Color( 0.14902, 0.14902, 0.2, 1 )
+
+[node name="Fist" type="ColorRect" parent="Player/Visual"]
+visible = false
+margin_left = 18.0
+margin_top = -65.0
+margin_right = 36.0
+margin_bottom = -51.0
+color = Color( 0.94902, 0.85098, 0.4, 1 )
+
+[node name="Rival" type="KinematicBody2D" parent="." groups=["fighters", "rival"]]
+position = Vector2( 764, 475 )
+script = ExtResource( 2 )
+is_ai = true
+fighter_name = "Pandillero Callejero"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rival"]
+position = Vector2( 0, -50 )
+shape = SubResource( 2 )
+
+[node name="Visual" type="Node2D" parent="Rival"]
+scale = Vector2( -1, 1 )
+
+[node name="Head" type="ColorRect" parent="Rival/Visual"]
+margin_left = -14.0
+margin_top = -102.0
+margin_right = 14.0
+margin_bottom = -80.0
+color = Color( 0.85098, 0.701961, 0.6, 1 )
+
+[node name="Body" type="ColorRect" parent="Rival/Visual"]
+margin_left = -18.0
+margin_top = -80.0
+margin_right = 18.0
+margin_bottom = -20.0
+color = Color( 0.901961, 0.25098, 0.25098, 1 )
+
+[node name="Legs" type="ColorRect" parent="Rival/Visual"]
+margin_left = -16.0
+margin_top = -20.0
+margin_right = 16.0
+margin_bottom = 0.0
+color = Color( 0.121569, 0.121569, 0.14902, 1 )
+
+[node name="Fist" type="ColorRect" parent="Rival/Visual"]
+visible = false
+margin_left = 18.0
+margin_top = -65.0
+margin_right = 36.0
+margin_bottom = -51.0
+color = Color( 1, 0.4, 0.2, 1 )
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="TopPanel" type="PanelContainer" parent="CanvasLayer"]
+anchor_left = 0.5
+anchor_right = 0.5
+margin_left = -400.0
+margin_top = 20.0
+margin_right = 400.0
+margin_bottom = 85.0
+
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/TopPanel"]
+margin_left = 7.0
+margin_top = 7.0
+margin_right = 793.0
+margin_bottom = 58.0
+custom_constants/separation = 20
+
+[node name="PlayerBox" type="VBoxContainer" parent="CanvasLayer/TopPanel/HBox"]
+margin_right = 358.0
+margin_bottom = 51.0
+size_flags_horizontal = 3
+
+[node name="PlayerName" type="Label" parent="CanvasLayer/TopPanel/HBox/PlayerBox"]
+margin_right = 358.0
+margin_bottom = 14.0
+text = "RYU HAYAMA (CANTERANO)"
+
+[node name="PlayerHPBar" type="ProgressBar" parent="CanvasLayer/TopPanel/HBox/PlayerBox"]
+margin_top = 18.0
+margin_right = 358.0
+margin_bottom = 33.0
+rect_min_size = Vector2( 0, 15 )
+size_flags_horizontal = 3
+step = 1.0
+value = 100.0
+
+[node name="PlayerHPLabel" type="Label" parent="CanvasLayer/TopPanel/HBox/PlayerBox"]
+margin_top = 37.0
+margin_right = 358.0
+margin_bottom = 51.0
+text = "Ryu Hayama: 100 / 100 HP"
+
+[node name="VSLabel" type="Label" parent="CanvasLayer/TopPanel/HBox"]
+margin_left = 378.0
+margin_top = 18.0
+margin_right = 408.0
+margin_bottom = 32.0
+rect_min_size = Vector2( 30, 0 )
+text = "VS"
+align = 1
+valign = 1
+
+[node name="RivalBox" type="VBoxContainer" parent="CanvasLayer/TopPanel/HBox"]
+margin_left = 428.0
+margin_right = 786.0
+margin_bottom = 51.0
+size_flags_horizontal = 3
+
+[node name="RivalName" type="Label" parent="CanvasLayer/TopPanel/HBox/RivalBox"]
+margin_right = 358.0
+margin_bottom = 14.0
+text = "PANDILLERO (ASFALTO)"
+align = 2
+
+[node name="RivalHPBar" type="ProgressBar" parent="CanvasLayer/TopPanel/HBox/RivalBox"]
+margin_top = 18.0
+margin_right = 358.0
+margin_bottom = 33.0
+rect_min_size = Vector2( 0, 15 )
+size_flags_horizontal = 3
+step = 1.0
+value = 100.0
+
+[node name="RivalHPLabel" type="Label" parent="CanvasLayer/TopPanel/HBox/RivalBox"]
+margin_top = 37.0
+margin_right = 358.0
+margin_bottom = 51.0
+text = "Pandillero: 100 / 100 HP"
+align = 2
+
+[node name="MessageLabel" type="Label" parent="CanvasLayer"]
+anchor_left = 0.5
+anchor_top = 0.4
+anchor_right = 0.5
+anchor_bottom = 0.4
+margin_left = -300.0
+margin_top = -40.0
+margin_right = 300.0
+margin_bottom = 40.0
+rect_scale = Vector2( 1.8, 1.8 )
+rect_pivot_offset = Vector2( 300, 40 )
+text = "¡PELEA!"
+align = 1
+valign = 1
+
+[node name="ControlsHint" type="Label" parent="CanvasLayer"]
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+margin_top = -40.0
+text = "Controles: A / D o Flechas: Moverse | Espacio o J: Golpe Básico"
+align = 1
+valign = 1

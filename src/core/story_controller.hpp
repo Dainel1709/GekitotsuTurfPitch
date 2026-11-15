@@ -94,6 +94,10 @@ public:
         tree.apply_match_result(player_goals, opponent_goals);
     }
 
+    void apply_fight_result(bool player_won) {
+        tree.apply_fight_result(player_won);
+    }
+
     void add_sports_discipline(int amount) noexcept {
         tree.add_sports_discipline(amount);
     }
