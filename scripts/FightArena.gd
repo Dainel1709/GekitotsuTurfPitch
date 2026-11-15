@@ -1,7 +1,8 @@
 extends Node2D
 
-onready var player: Fighter = $Player
-onready var rival: Fighter = $Rival
+# Sin anotación de tipo para evitar errores de cast de Godot 3.6 antes del set_script()
+onready var player = $Player
+onready var rival = $Rival
 
 onready var player_hp_bar: ProgressBar = $CanvasLayer/TopPanel/HBox/PlayerBox/PlayerHPBar
 onready var rival_hp_bar: ProgressBar = $CanvasLayer/TopPanel/HBox/RivalBox/RivalHPBar
@@ -12,6 +13,9 @@ onready var message_label: Label = $CanvasLayer/MessageLabel
 var fight_over: bool = false
 
 func _ready() -> void:
+	# Paso 1: Asegurar que ambos nodos tienen Fighter.gd antes de acceder a sus propiedades
+	_setup_fighters()
+
 	# Vincular referencias cruzadas entre luchadores
 	player.opponent = rival
 	rival.opponent = player
@@ -19,9 +23,13 @@ func _ready() -> void:
 	# Conectar señales de salud y fin de combate
 	player.connect("health_changed", self, "_on_player_health_changed")
 	player.connect("died", self, "_on_player_died")
+	if player.has_signal("defeated"):
+		player.connect("defeated", self, "_on_player_died")
 
 	rival.connect("health_changed", self, "_on_rival_health_changed")
 	rival.connect("died", self, "_on_rival_died")
+	if rival.has_signal("defeated"):
+		rival.connect("defeated", self, "_on_rival_died")
 
 	# Inicializar barras de vida
 	player_hp_bar.max_value = player.max_health
@@ -39,6 +47,36 @@ func _ready() -> void:
 	yield(get_tree().create_timer(1.2), "timeout")
 	if not fight_over:
 		message_label.visible = false
+
+func _setup_fighters() -> void:
+	# Carga defensiva: si un nodo llega sin el script de Fighter.gd, lo asigna ahora
+	var fighter_script = load("res://scripts/Fighter.gd")
+	if fighter_script == null:
+		push_error("[FightArena] ERROR CRÍTICO: No se pudo cargar res://scripts/Fighter.gd")
+		return
+
+	if not player.get_script() or player.get_script() != fighter_script:
+		player.set_script(fighter_script)
+		print("[FightArena] Fighter.gd asignado a Player por set_script()")
+
+	if not rival.get_script() or rival.get_script() != fighter_script:
+		rival.set_script(fighter_script)
+		print("[FightArena] Fighter.gd asignado a Rival por set_script()")
+
+	# Verificación de sanidad: el método take_damage debe existir
+	if not player.has_method("take_damage"):
+		push_error("[FightArena] Player no tiene take_damage tras set_script(); Fighter.gd tiene errores.")
+		return
+	if not rival.has_method("take_damage"):
+		push_error("[FightArena] Rival no tiene take_damage tras set_script(); Fighter.gd tiene errores.")
+		return
+
+	# Configurar roles: jugador vs IA
+	player.is_player = true
+	player.is_ai    = false
+	rival.is_player = false
+	rival.is_ai     = true
+	print("[FightArena] Fighters configurados correctamente: Player(is_player=%s) Rival(is_ai=%s)" % [player.is_player, rival.is_ai])
 
 func _on_player_health_changed(new_hp: float, _max_hp: float) -> void:
 	player_hp_bar.value = new_hp
