@@ -5,6 +5,7 @@
 [ext_resource path="res://scripts/GoalArea.gd" type="Script" id=3]
 [ext_resource path="res://scripts/PitchHUD.gd" type="Script" id=4]
 [ext_resource path="res://scripts/FootballAI.gd" type="Script" id=5]
+[ext_resource path="res://scripts/PitchCamera.gd" type="Script" id=6]
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 40, 25 )
@@ -86,6 +87,7 @@ roughness = 0.5
 [node name="FootballPitch" type="Spatial"]
 
 [node name="OverheadCamera" type="Camera" parent="."]
+script = ExtResource( 6 )
 transform = Transform( 1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 16, 0 )
 projection = 1
 size = 28.0
