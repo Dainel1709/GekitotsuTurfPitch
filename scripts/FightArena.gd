@@ -9,8 +9,13 @@ onready var rival_hp_bar: ProgressBar = $CanvasLayer/TopPanel/HBox/RivalBox/Riva
 onready var player_hp_label: Label = $CanvasLayer/TopPanel/HBox/PlayerBox/PlayerHPLabel
 onready var rival_hp_label: Label = $CanvasLayer/TopPanel/HBox/RivalBox/RivalHPLabel
 onready var message_label: Label = $CanvasLayer/MessageLabel
+onready var combo_label: Label = $CanvasLayer/ComboLabel if has_node("CanvasLayer/ComboLabel") else null
+onready var camera = $Camera2D if has_node("Camera2D") else null
 
 var fight_over: bool = false
+var shake_intensity: float = 0.0
+var shake_decay: float = 18.0
+var _combo_hide_timer: float = 0.0
 
 func _ready() -> void:
 	# Paso 1: Asegurar que ambos nodos tienen Fighter.gd antes de acceder a sus propiedades
@@ -31,13 +36,32 @@ func _ready() -> void:
 	if rival.has_signal("defeated"):
 		rival.connect("defeated", self, "_on_rival_died")
 
+	# Conectar señales de combo arcade y sacudida de impacto
+	if player.has_signal("combo_updated"):
+		player.connect("combo_updated", self, "_on_fighter_combo_updated")
+	if player.has_signal("combo_broken"):
+		player.connect("combo_broken", self, "_on_fighter_combo_broken")
+	if player.has_signal("shake_requested"):
+		player.connect("shake_requested", self, "trigger_camera_shake")
+
+	if rival.has_signal("combo_updated"):
+		rival.connect("combo_updated", self, "_on_fighter_combo_updated")
+	if rival.has_signal("combo_broken"):
+		rival.connect("combo_broken", self, "_on_fighter_combo_broken")
+	if rival.has_signal("shake_requested"):
+		rival.connect("shake_requested", self, "trigger_camera_shake")
+
 	# Inicializar barras de vida
 	player_hp_bar.max_value = player.max_health
-	player_hp_bar.value = player.current_health
-	rival_hp_bar.max_value = rival.max_health
-	rival_hp_bar.value = rival.current_health
+	player_hp_bar.value     = player.current_health
+	rival_hp_bar.max_value  = rival.max_health
+	rival_hp_bar.value       = rival.current_health
 
 	_update_labels()
+
+	# Ocultar combo inicialmente
+	if combo_label:
+		combo_label.visible = false
 
 	# Mensaje inicial de inicio de pelea
 	message_label.text = "¡PELEA!"
@@ -47,6 +71,46 @@ func _ready() -> void:
 	yield(get_tree().create_timer(1.2), "timeout")
 	if not fight_over:
 		message_label.visible = false
+
+func _process(delta: float) -> void:
+	# Sacudida sutil de cámara en impacto (100% compatible con GLES2)
+	if camera:
+		if shake_intensity > 0.1:
+			camera.offset = Vector2(
+				rand_range(-shake_intensity, shake_intensity),
+				rand_range(-shake_intensity, shake_intensity)
+			)
+			shake_intensity = lerp(shake_intensity, 0.0, shake_decay * delta)
+		elif camera.offset != Vector2.ZERO:
+			camera.offset = Vector2.ZERO
+			shake_intensity = 0.0
+
+	# Temporizador para ocultar combo_label
+	if _combo_hide_timer > 0.0:
+		_combo_hide_timer -= delta
+		if _combo_hide_timer <= 0.0 and combo_label and not fight_over:
+			combo_label.visible = false
+
+func trigger_camera_shake(intensity: float = 5.0) -> void:
+	shake_intensity = max(shake_intensity, intensity)
+
+func _on_fighter_combo_updated(_fighter, step: int, text: String) -> void:
+	if combo_label and not fight_over:
+		combo_label.text = text
+		combo_label.visible = true
+		_combo_hide_timer = 1.0
+
+		if step == 6:
+			combo_label.modulate = Color(1.0, 0.25, 0.1) # Fuego/Naranja brillante para 6-HIT COMBO!
+		elif step >= 4:
+			combo_label.modulate = Color(1.0, 0.85, 0.15) # Oro arcade
+		elif step >= 2:
+			combo_label.modulate = Color(0.2, 0.9, 1.0) # Celeste eléctrico
+		else:
+			combo_label.modulate = Color(0.3, 1.0, 0.4) # Verde
+
+func _on_fighter_combo_broken() -> void:
+	_combo_hide_timer = 0.2
 
 func _setup_fighters() -> void:
 	# Carga defensiva: si un nodo llega sin el script de Fighter.gd, lo asigna ahora
