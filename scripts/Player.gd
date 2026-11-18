@@ -57,6 +57,9 @@ var prev_btn_square: bool = false
 var prev_btn_triangle: bool = false
 var prev_btn_l: bool = false
 
+# Acción defensiva: Robo / Entrada (Tackle)
+var tackle_cooldown: float = 0.0
+
 # Variables de respaldo local (Fallback si la librería nativa no está cargada)
 var fallback_base_speed: float = 10.0
 var fallback_stamina: float = 100.0
@@ -148,6 +151,8 @@ func _physics_process(delta: float) -> void:
 		knock_on_boost_timer = max(0.0, knock_on_boost_timer - delta)
 	if r_tap_timer > 0.0:
 		r_tap_timer = max(0.0, r_tap_timer - delta)
+	if tackle_cooldown > 0.0:
+		tackle_cooldown = max(0.0, tackle_cooldown - delta)
 
 	# 2. Captura de Movimiento (Exclusivo Flechas + Cruceta/Stick del Mando)
 	var input_2d := Vector2.ZERO
@@ -408,10 +413,13 @@ func _handle_ppsspp_actions(delta: float) -> void:
 	var btn_square = gs.get_button_square(0) if (gs and gs.has_method("get_button_square")) else JOY_BUTTON_2
 	var btn_triangle = gs.get_button_triangle(0) if (gs and gs.has_method("get_button_triangle")) else JOY_BUTTON_3
 
-	# --- 1. Botón X (Cruz): Pase Corto -> Tecla Z | X (PS) / A (Xbox) ---
+	# --- 1. Botón X (Cruz): Pase Corto (con balón) / Robo-Entrada (sin balón) -> Tecla Z | X (PS) / A (Xbox) ---
 	var cur_btn_cross = Input.is_action_pressed("psp_cross") or Input.is_key_pressed(KEY_Z) or Input.is_joy_button_pressed(0, btn_cross)
 	if cur_btn_cross and not prev_btn_cross:
-		_execute_short_pass()
+		if is_dribbling or is_ball_controlled:
+			_execute_short_pass()
+		else:
+			_execute_tackle()
 	prev_btn_cross = cur_btn_cross
 
 	# --- 2. Botón Δ (Triángulo): Pase en profundidad -> Tecla S | Δ (PS) / Y (Xbox) ---
@@ -502,6 +510,70 @@ func _can_kick_ball() -> bool:
 		return false
 	var dist_to_ball = translation.distance_to(ball_ref.translation)
 	return is_colliding_with_ball or is_ball_in_kick_area or dist_to_ball <= kick_reach or is_dribbling or is_ball_controlled
+
+# --- Acción Defensiva: Robo / Entrada (Tackle) — Botón Cruz sin posesión ---
+func _execute_tackle() -> void:
+	if tackle_cooldown > 0.0:
+		return
+	_resolve_ball_reference()
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return
+
+	var my_pos: Vector3 = global_transform.origin
+	var ball_pos: Vector3 = ball_ref.global_transform.origin
+	var dist_to_ball: float = my_pos.distance_to(ball_pos)
+
+	# Buscar si hay un rival cercano al balón (radio 1.8 m)
+	var tree = get_tree()
+	if not tree:
+		return
+	var rivals_found = tree.get_nodes_in_group("opponents")
+	var carrier = null
+	for r in rivals_found:
+		if r is Spatial and is_instance_valid(r):
+			var r_pos = r.global_transform.origin
+			r_pos.y = ball_pos.y
+			if ball_pos.distance_to(r_pos) <= 1.8:
+				carrier = r
+				break
+
+	# Si no hay rival portador, buscar también en footballai opponents
+	if not carrier:
+		var opp_groups = tree.get_nodes_in_group("opponents")
+		for o in opp_groups:
+			if "has_ball" in o and o.has_ball:
+				var o_pos = o.global_transform.origin
+				o_pos.y = my_pos.y
+				if my_pos.distance_to(o_pos) <= 1.8:
+					carrier = o
+					break
+
+	if carrier and my_pos.distance_to(carrier.global_transform.origin) <= 1.8:
+		# Robo exitoso: quitar el balón al rival
+		if "has_ball" in carrier:
+			carrier.has_ball = false
+		if "is_dribbling" in carrier:
+			carrier.is_dribbling = false
+		if "possession_cooldown" in carrier:
+			carrier.possession_cooldown = 0.65
+		# Tomar posesión
+		is_dribbling = true
+		is_ball_controlled = true
+		kick_cooldown = 0.0
+		tackle_cooldown = 0.45
+		add_fury(10.0 * fury_gain_mult)
+		print("[Player] ¡ENTRADA / ROBO exitoso! Balón recuperado (Tackle).")
+	elif dist_to_ball <= 1.8 and ball_ref.linear_velocity.length() < 18.0:
+		# Balón suelto cerca: tomar control directo
+		is_dribbling = true
+		is_ball_controlled = true
+		kick_cooldown = 0.0
+		tackle_cooldown = 0.45
+		print("[Player] Balón suelto controlado con entrada.")
+	else:
+		# Entrada fallida
+		tackle_cooldown = 0.45
+		print("[Player] Entrada fallida: sin rival ni balón en rango de 1.8 m.")
 
 # --- Botón X: Pase Corto Raso ---
 func _execute_short_pass() -> void:
@@ -726,6 +798,11 @@ func _on_button_l_pressed() -> void:
 			ball_ref.linear_velocity = impulse
 			ball_ref.apply_central_impulse(impulse)
 			print("[Carrera] Botón L (Q / L1): Compañero aliado realiza pase hacia Ryu.")
+	# Notificar a los compañeros para que pasen el balón al jugador
+	var teammates = get_tree().get_nodes_in_group("teammates")
+	for t in teammates:
+		if t != self and t.has_method("receive_pass_call"):
+			t.receive_pass_call(self)
 		return
 
 	# 4. Balón suelto en la cancha y no hay nadie cerca:

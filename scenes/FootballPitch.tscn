@@ -1,9 +1,10 @@
-[gd_scene load_steps=23 format=2]
+[gd_scene load_steps=32 format=2]
 
 [ext_resource path="res://scripts/Player.gd" type="Script" id=1]
 [ext_resource path="res://scenes/FootballBall.tscn" type="PackedScene" id=2]
 [ext_resource path="res://scripts/GoalArea.gd" type="Script" id=3]
 [ext_resource path="res://scripts/PitchHUD.gd" type="Script" id=4]
+[ext_resource path="res://scripts/FootballAI.gd" type="Script" id=5]
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 40, 25 )
@@ -69,6 +70,18 @@ radius = 1.35
 
 [sub_resource type="PlaneMesh" id=18]
 size = Vector2( 9.5, 0.12 )
+
+[sub_resource type="SpatialMaterial" id=19]
+albedo_color = Color( 0.2, 0.2, 0.75, 1 )
+roughness = 0.4
+
+[sub_resource type="SpatialMaterial" id=20]
+albedo_color = Color( 0.0, 0.8, 0.85, 1 )
+roughness = 0.4
+
+[sub_resource type="SpatialMaterial" id=21]
+albedo_color = Color( 0.3, 0.3, 0.3, 1 )
+roughness = 0.5
 
 [node name="FootballPitch" type="Spatial"]
 
@@ -379,3 +392,84 @@ margin_top = -42.0
 text = "PPSSPP: Cruz: Pase corto | O: Centro | Δ: Pase al hueco | □: Disparo | R: Sprint | L: Manual | SELECT: Táctica | START: Pausa"
 align = 1
 valign = 1
+
+[node name="AIActors" type="Spatial" parent="."]
+
+[node name="RivalGoalkeeper" type="KinematicBody" parent="AIActors"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -11.0 )
+script = ExtResource( 5 )
+role = "goalkeeper"
+is_player_team = false
+move_speed = 9.0
+sprint_speed = 11.0
+
+[node name="GKMeshRival" type="MeshInstance" parent="AIActors/RivalGoalkeeper"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+mesh = SubResource( 14 )
+material/0 = SubResource( 21 )
+
+[node name="CollisionShape" type="CollisionShape" parent="AIActors/RivalGoalkeeper"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+shape = SubResource( 16 )
+
+[node name="AllyGoalkeeper" type="KinematicBody" parent="AIActors"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 11.0 )
+script = ExtResource( 5 )
+role = "goalkeeper"
+is_player_team = true
+move_speed = 9.0
+sprint_speed = 11.0
+
+[node name="GKMeshAlly" type="MeshInstance" parent="AIActors/AllyGoalkeeper"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+mesh = SubResource( 14 )
+material/0 = SubResource( 19 )
+
+[node name="CollisionShape" type="CollisionShape" parent="AIActors/AllyGoalkeeper"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+shape = SubResource( 16 )
+
+[node name="Opponent1" type="KinematicBody" parent="AIActors"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -4.0, 0.8, -4.0 )
+script = ExtResource( 5 )
+role = "opponent"
+is_player_team = false
+
+[node name="OppMesh1" type="MeshInstance" parent="AIActors/Opponent1"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+mesh = SubResource( 14 )
+material/0 = SubResource( 15 )
+
+[node name="CollisionShape" type="CollisionShape" parent="AIActors/Opponent1"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+shape = SubResource( 16 )
+
+[node name="Opponent2" type="KinematicBody" parent="AIActors"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 4.0, 0.8, -2.0 )
+script = ExtResource( 5 )
+role = "opponent"
+is_player_team = false
+
+[node name="OppMesh2" type="MeshInstance" parent="AIActors/Opponent2"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+mesh = SubResource( 14 )
+material/0 = SubResource( 15 )
+
+[node name="CollisionShape" type="CollisionShape" parent="AIActors/Opponent2"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+shape = SubResource( 16 )
+
+[node name="Teammate1" type="KinematicBody" parent="AIActors"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0, 0.8, 1.0 )
+script = ExtResource( 5 )
+role = "teammate"
+is_player_team = true
+
+[node name="TeamMesh1" type="MeshInstance" parent="AIActors/Teammate1"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+mesh = SubResource( 14 )
+material/0 = SubResource( 20 )
+
+[node name="CollisionShape" type="CollisionShape" parent="AIActors/Teammate1"]
+transform = Transform( 1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0 )
+shape = SubResource( 16 )

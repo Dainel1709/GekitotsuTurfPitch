@@ -68,6 +68,9 @@ func _process_goal(ball: Node) -> void:
 			ball.angular_velocity = Vector3.ZERO
 		ball.global_transform.origin = reset_point
 
+	# Reiniciar posición de todos los actores (Jugador, IA)
+	_reset_all_actors()
+
 func _find_mechanics() -> Object:
 	# 1. Buscar en nodos del grupo "player" (donde Player.gd instancia FootballMechanics)
 	var players = get_tree().get_nodes_in_group("player")
@@ -90,3 +93,45 @@ func _find_mechanics() -> Object:
 			return ClassDB.instance("FootballMechanics")
 
 	return null
+
+func _reset_all_actors() -> void:
+	var tree = get_tree()
+	if not tree:
+		return
+
+	# Reiniciar jugador principal
+	var players = tree.get_nodes_in_group("player")
+	for p in players:
+		if p is Spatial:
+			if "is_dribbling" in p:
+				p.is_dribbling = false
+			if "is_ball_controlled" in p:
+				p.is_ball_controlled = false
+			if "kick_cooldown" in p:
+				p.kick_cooldown = 0.0
+			if "tackle_cooldown" in p:
+				p.tackle_cooldown = 0.0
+			# Reposicionar al jugador en su posición inicial
+			if p.has_method("get") and p.get("initial_position") != null:
+				p.global_transform.origin = p.initial_position
+			else:
+				p.global_transform.origin = Vector3(0.0, 0.8, 3.5)
+		print("[GoalArea] Jugador principal reposicionado tras gol.")
+
+	# Reiniciar IA: compañeros, rivales y porteros
+	var ai_groups = ["teammates", "opponents", "goalkeepers"]
+	for grp in ai_groups:
+		var nodes = tree.get_nodes_in_group(grp)
+		for ai in nodes:
+			if ai.has_method("reset_position"):
+				ai.reset_position()
+			elif ai is Spatial:
+				if "initial_position" in ai:
+					ai.global_transform.origin = ai.initial_position
+				if "has_ball" in ai:
+					ai.has_ball = false
+				if "is_dribbling" in ai:
+					ai.is_dribbling = false
+				if "velocity" in ai:
+					ai.velocity = Vector3.ZERO
+	print("[GoalArea] Todas las posiciones de IA reiniciadas tras gol.")
