@@ -174,18 +174,18 @@ anchor_right = 0.5
 margin_left = -400.0
 margin_top = 20.0
 margin_right = 400.0
-margin_bottom = 85.0
+margin_bottom = 120.0
 
 [node name="HBox" type="HBoxContainer" parent="CanvasLayer/TopPanel"]
 margin_left = 7.0
 margin_top = 7.0
 margin_right = 793.0
-margin_bottom = 58.0
+margin_bottom = 93.0
 custom_constants/separation = 20
 
 [node name="PlayerBox" type="VBoxContainer" parent="CanvasLayer/TopPanel/HBox"]
 margin_right = 358.0
-margin_bottom = 51.0
+margin_bottom = 86.0
 size_flags_horizontal = 3
 
 [node name="PlayerName" type="Label" parent="CanvasLayer/TopPanel/HBox/PlayerBox"]
@@ -207,6 +207,21 @@ margin_top = 37.0
 margin_right = 358.0
 margin_bottom = 51.0
 text = "Ryu Hayama: 100 / 100 HP"
+
+[node name="PlayerFuryBar" type="ProgressBar" parent="CanvasLayer/TopPanel/HBox/PlayerBox"]
+margin_top = 55.0
+margin_right = 358.0
+margin_bottom = 67.0
+rect_min_size = Vector2( 0, 12 )
+size_flags_horizontal = 3
+step = 1.0
+percent_visible = false
+
+[node name="PlayerFuryLabel" type="Label" parent="CanvasLayer/TopPanel/HBox/PlayerBox"]
+margin_top = 71.0
+margin_right = 358.0
+margin_bottom = 85.0
+text = "Furia: 0%"
 
 [node name="VSLabel" type="Label" parent="CanvasLayer/TopPanel/HBox"]
 margin_left = 378.0
@@ -282,6 +297,6 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 margin_top = -40.0
-text = "Flechas: Moverse | Arriba: Saltar | A/Z: Combo 6 Golpes | X/S: Fuerte/Remate | Q: Guardia | W: Esquive"
+text = "Flechas: Moverse | Arriba: Saltar | A/Z: Combo | X/S: Fuerte | A+X: Furia Especial | Q: Guardia | W: Esquive"
 align = 1
 valign = 1

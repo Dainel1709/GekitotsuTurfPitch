@@ -2,8 +2,22 @@ extends KinematicBody
 
 class_name Player
 
+signal fury_changed(new_fury, max_fury)
+signal special_shot_executed()
+
 # Referencia a la clase backend de C++ (FootballMechanics en GDExtension / GDNative)
 var mechanics = null
+
+# RPG Stats desde GekitotsuStoryManager (C++)
+var combat_stat: int = 0
+var discipline_stat: int = 0
+var kick_power_mult: float = 1.0
+var fury_gain_mult: float = 1.0
+var sprint_drain_mult: float = 1.0
+
+# Barra de Furia
+var fury: float = 0.0 setget set_fury, get_fury
+var max_fury: float = 100.0
 
 # Configuración de Disparo y Balón
 export var fallback_base_kick_force: float = 16.0
@@ -69,6 +83,55 @@ func _ready() -> void:
 		if mechanics:
 			add_child(mechanics)
 			print("[Player] Vinculado exitosamente con FootballMechanics (C++ Backend)")
+
+	# Lectura y vinculación de RPG Stats desde C++ (GekitotsuStoryManager)
+	var combat: int = 0
+	var discipline: int = 0
+	if ClassDB.class_exists("GekitotsuStoryManager"):
+		var sm = null
+		if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
+			sm = ClassDB.instantiate("GekitotsuStoryManager")
+		elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
+			sm = ClassDB.instance("GekitotsuStoryManager")
+		if sm:
+			if sm.has_method("get_combat_technique"):
+				combat = sm.get_combat_technique()
+			if sm.has_method("get_discipline_points"):
+				discipline = sm.get_discipline_points()
+	elif get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats"):
+		var stats = get_tree().root.get_meta("gtp_stats")
+		combat = stats.get("combat", 0)
+		discipline = stats.get("discipline", 0)
+
+	apply_rpg_stats(combat, discipline)
+
+func set_fury(val: float) -> void:
+	fury = clamp(val, 0.0, max_fury)
+	emit_signal("fury_changed", fury, max_fury)
+
+func get_fury() -> float:
+	return fury
+
+func add_fury(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	var prev = fury
+	fury = clamp(fury + amount, 0.0, max_fury)
+	if fury != prev:
+		emit_signal("fury_changed", fury, max_fury)
+
+func apply_rpg_stats(p_combat: int, p_discipline: int) -> void:
+	combat_stat       = p_combat
+	discipline_stat   = p_discipline
+	kick_power_mult   = 1.0 + float(p_combat) * 0.008
+	fury_gain_mult    = 1.0 + float(p_combat) * 0.015
+	sprint_drain_mult = clamp(1.0 - float(p_discipline) * 0.006, 0.55, 1.0)
+	dribble_control_radius = 1.65 + float(p_discipline) * 0.005
+	if mechanics and mechanics.has_method("apply_rpg_stats"):
+		mechanics.apply_rpg_stats(p_combat, p_discipline)
+	print("[Player] RPG Stats aplicados: Combate=%d (potencia x%.2f, furia x%.2f) | Disciplina=%d (drenaje sprint x%.2f, control %.2fm)" % [
+		p_combat, kick_power_mult, fury_gain_mult, p_discipline, sprint_drain_mult, dribble_control_radius
+	])
 
 func _physics_process(delta: float) -> void:
 	if not can_move:
@@ -285,6 +348,10 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 			0.0,
 			-ball_ref.linear_velocity.x / ball_radius
 		)
+
+		# Cargar Furia al conducir en movimiento
+		if is_moving:
+			add_fury(5.0 * delta * fury_gain_mult)
 	else:
 		is_ball_controlled = false
 
@@ -324,6 +391,7 @@ func _execute_knock_on() -> void:
 	is_ball_controlled = false
 	knock_on_boost_timer = 0.45
 	drain_stamina(10.0)
+	add_fury(14.0 * fury_gain_mult)
 	print("[Player] ¡Autopase largo (Knock-on) con doble toque en W / R1! Velocidad: ", knock_speed, " | Boost activo")
 
 func _get_control_scheme() -> int:
@@ -358,6 +426,27 @@ func _handle_ppsspp_actions(delta: float) -> void:
 	# --- 4. Botón □ (Cuadrado): Tecla A | □ (PS) / X (Xbox) ---
 	var raw_square_pressed = Input.is_action_pressed("psp_square") or Input.is_key_pressed(KEY_A) or Input.is_joy_button_pressed(0, btn_square)
 	
+	# --- Comprobación de Tiro Especial (Gekitotsu Shot: L + Disparo con Furia 100%) ---
+	var cur_btn_l: bool = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+	if cur_btn_l and fury >= 100.0 and _can_kick_ball():
+		var special_triggered: bool = false
+		if scheme == 0:
+			# FIFA Clásico: Disparo es Círculo
+			if raw_circle_pressed and not prev_btn_circle:
+				special_triggered = true
+		else:
+			# PES Alternativo: Disparo es Cuadrado
+			if raw_square_pressed and not prev_btn_square:
+				special_triggered = true
+
+		if special_triggered:
+			is_charging = false
+			shot_charge = 0.0
+			prev_btn_circle = raw_circle_pressed
+			prev_btn_square = raw_square_pressed
+			_execute_special_shot()
+			return
+
 	var shoot_pressed: bool = false
 	var lob_pressed: bool = false
 
@@ -433,6 +522,7 @@ func _execute_short_pass() -> void:
 
 	ball_ref.apply_central_impulse(pass_impulse)
 	drain_stamina(4.0)
+	add_fury(8.0 * fury_gain_mult)
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
@@ -457,6 +547,7 @@ func _execute_lob_pass() -> void:
 
 	ball_ref.apply_central_impulse(lob_impulse)
 	drain_stamina(6.0)
+	add_fury(10.0 * fury_gain_mult)
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
@@ -481,6 +572,7 @@ func _execute_through_pass() -> void:
 
 	ball_ref.apply_central_impulse(through_impulse)
 	drain_stamina(7.0)
+	add_fury(12.0 * fury_gain_mult)
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
@@ -497,10 +589,63 @@ func _execute_kick() -> void:
 	ball_ref.apply_central_impulse(kick_impulse)
 	var stamina_cost = 8.0 + shot_charge * 14.0
 	drain_stamina(stamina_cost)
+	add_fury(15.0 * fury_gain_mult)
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
 	print("[PPSSPP] Botón □ (Cuadrado): Disparo ejecutado -> Potencia: ", stepify(shot_charge * 100, 1), "% | Vector: ", kick_impulse)
+
+# --- Tiro Especial ("Gekitotsu Shot" — Activado con L + Disparo) ---
+func _execute_special_shot() -> void:
+	if not _can_kick_ball():
+		return
+
+	fury = 0.0
+	emit_signal("fury_changed", fury, max_fury)
+	emit_signal("special_shot_executed")
+
+	# Orientar hacia la portería rival (RivalGoalArea en Z negativo)
+	var rival_goal = get_node_or_null("../RivalGoalArea")
+	var target_goal_pos = Vector3(0.0, 0.6, -12.0)
+	if rival_goal:
+		target_goal_pos = rival_goal.global_transform.origin
+		target_goal_pos.y = 0.6
+
+	var to_goal = target_goal_pos - ball_ref.global_transform.origin
+	var shot_dir = to_goal.normalized()
+	if to_goal.length_squared() < 0.01:
+		shot_dir = facing_direction.normalized()
+
+	var shot_speed: float = 38.0 * kick_power_mult
+	var special_impulse = Vector3(shot_dir.x * shot_speed, 1.5, shot_dir.z * shot_speed)
+
+	ball_ref.linear_velocity = special_impulse
+	ball_ref.apply_central_impulse(special_impulse)
+
+	_flash_ball()
+	drain_stamina(12.0)
+	kick_cooldown = 0.35
+	is_dribbling = false
+	is_ball_controlled = false
+
+	print("[Player] ¡¡¡GEKITOTSU SHOT (TIRO ESPECIAL) ACTIVADO CON L + DISPARO!!! Potencia: %.1f" % shot_speed)
+
+func _flash_ball() -> void:
+	if not ball_ref or not is_instance_valid(ball_ref):
+		return
+	var mesh_inst = ball_ref.get_node_or_null("MeshInstance")
+	if mesh_inst and mesh_inst is MeshInstance:
+		var mat = mesh_inst.get_surface_material(0)
+		if mat and mat is SpatialMaterial:
+			var orig_emission = mat.emission_enabled
+			var orig_color = mat.emission
+			mat.emission_enabled = true
+			mat.emission = Color(1.0, 0.85, 0.2)
+			if get_tree():
+				yield(get_tree().create_timer(0.2), "timeout")
+				if mat and is_instance_valid(mat):
+					mat.emission_enabled = orig_emission
+					mat.emission = orig_color
 
 # --- Detección de Rivales y Compañeros para Posesión de Balón ---
 func _is_rival_near_ball(ball_pos: Vector3, max_dist: float = 2.2) -> bool:

@@ -12,6 +12,8 @@ signal punched()
 signal combo_updated(fighter, step_count, combo_text)
 signal combo_broken()
 signal shake_requested(intensity)
+signal fury_changed(new_fury, max_fury)
+signal special_attack_executed()
 
 # ---------------------------------------------------------------------------
 # Constantes de combate arcade
@@ -144,6 +146,16 @@ var combo_step:           int     = 0
 var max_combo_steps:      int     = 6
 var combo_window_timer:   float   = 0.0
 
+# RPG Stats desde GekitotsuStoryManager
+var combat_stat:          int     = 0
+var discipline_stat:      int     = 0
+var damage_multiplier:    float   = 1.0
+var fury_gain_mult:       float   = 1.0
+
+# Furia y Ataque Especial
+var fury:                 float   = 0.0 setget set_fury, get_fury
+var max_fury:             float   = 100.0
+
 # Hitstun / Blockstun / Hitstop / Knockback
 var hitstun_timer:        float   = 0.0
 var blockstun_timer:      float   = 0.0
@@ -229,6 +241,31 @@ func set_punch_damage(val: float) -> void:
 
 func get_punch_damage() -> float:
 	return punch_damage
+
+func set_fury(val: float) -> void:
+	fury = clamp(val, 0.0, max_fury)
+	emit_signal("fury_changed", fury, max_fury)
+
+func get_fury() -> float:
+	return fury
+
+func add_fury(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	var prev = fury
+	fury = clamp(fury + amount, 0.0, max_fury)
+	if fury != prev:
+		emit_signal("fury_changed", fury, max_fury)
+
+func apply_rpg_stats(p_combat: int, p_discipline: int) -> void:
+	combat_stat       = p_combat
+	discipline_stat   = p_discipline
+	damage_multiplier = 1.0 + float(p_combat) * 0.015
+	fury_gain_mult    = 1.0 + float(p_combat) * 0.015
+	block_dmg_factor  = clamp(0.25 - float(p_discipline) * 0.003, 0.12, 0.25)
+	print("[%s] RPG Stats C++ aplicados: Combate=%d (dmg x%.2f, furia x%.2f) | Disciplina=%d (bloqueo %.0f%% mit)" % [
+		fighter_name, p_combat, damage_multiplier, fury_gain_mult, p_discipline, (1.0 - block_dmg_factor) * 100.0
+	])
 
 # ---------------------------------------------------------------------------
 # _physics_process
@@ -402,7 +439,7 @@ func _process_player_input(_delta: float) -> void:
 		dodge_timer     = dodge_duration
 		return
 
-	# --- 5. GOLPE BÁSICO: A (Cuadrado) o Z (Cruz) ---
+	# --- 5. DETECCIÓN DE BOTONES DE ATAQUE ---
 	var basic_pressed: bool = (
 		Input.is_key_pressed(KEY_A) or
 		Input.is_key_pressed(KEY_Z) or
@@ -411,10 +448,7 @@ func _process_player_input(_delta: float) -> void:
 		Input.is_joy_button_pressed(0, btn_square) or
 		Input.is_joy_button_pressed(0, btn_cross)
 	)
-	if basic_pressed and can_punch:
-		_on_basic_punch_input()
 
-	# --- 6. GOLPE FUERTE: X (Círculo) o S (Triángulo) ---
 	var heavy_pressed: bool = (
 		Input.is_key_pressed(KEY_X) or
 		Input.is_key_pressed(KEY_S) or
@@ -423,7 +457,25 @@ func _process_player_input(_delta: float) -> void:
 		Input.is_joy_button_pressed(0, btn_circle) or
 		Input.is_joy_button_pressed(0, btn_tri)
 	)
-	if heavy_pressed and heavy_cooldown_timer <= 0.0:
+
+	# --- 6. GOLPE ESPECIAL ("Gekitotsu Breaker"): A+X / Z+S / Cuadrado+Círculo / Cruz+Triángulo ---
+	var special_pressed: bool = (
+		(basic_pressed and heavy_pressed) or
+		(Input.is_key_pressed(KEY_A) and Input.is_key_pressed(KEY_X)) or
+		(Input.is_key_pressed(KEY_Z) and Input.is_key_pressed(KEY_S)) or
+		(Input.is_joy_button_pressed(0, btn_square) and Input.is_joy_button_pressed(0, btn_circle)) or
+		(Input.is_joy_button_pressed(0, btn_cross) and Input.is_joy_button_pressed(0, btn_tri))
+	)
+	if special_pressed and fury >= 100.0 and not is_jumping and can_punch:
+		_execute_special_attack()
+		return
+
+	# Golpe básico individual o encadenado
+	if basic_pressed and can_punch:
+		_on_basic_punch_input()
+
+	# Golpe fuerte individual
+	elif heavy_pressed and heavy_cooldown_timer <= 0.0:
 		_on_heavy_punch_input()
 
 # ---------------------------------------------------------------------------
@@ -512,7 +564,7 @@ func _execute_combo_step(step_index: int) -> void:
 		step_index = 0
 
 	var data   = COMBO_DATA[step_index]
-	var dmg:    float = data["damage"]
+	var dmg:    float = data["damage"] * damage_multiplier
 	var cd:     float = data["cooldown"]
 	var kb:     float = data["knockback"]
 	var adv:    float = data["advance"]
@@ -546,6 +598,12 @@ func _execute_combo_step(step_index: int) -> void:
 		print("[%s] ¡Golpe %d conectado sobre %s!" % [fighter_name, hit_num, opponent.fighter_name])
 		opponent.take_damage(dmg, kb, stun, facing_direction)
 
+		# Cargar Furia: más en combos altos y escalado por Combate
+		var base_fury: float = 8.0 + float(step_index) * 2.5
+		if hit_num == 6:
+			base_fury = 25.0
+		add_fury(base_fury * fury_gain_mult)
+
 		# Hitstop aplicado al atacante y receptor
 		hitstop_timer = stop
 		if opponent and is_instance_valid(opponent):
@@ -577,7 +635,7 @@ func _execute_combo_step(step_index: int) -> void:
 # ---------------------------------------------------------------------------
 func _execute_heavy_attack() -> void:
 	var data   = HEAVY_ATTACK_DATA
-	var dmg:    float = data["damage"]
+	var dmg:    float = data["damage"] * damage_multiplier
 	var cd:     float = data["cooldown"]
 	var kb:     float = data["knockback"]
 	var adv:    float = data["advance"]
@@ -609,6 +667,7 @@ func _execute_heavy_attack() -> void:
 	if dist <= eff_range and (dir_to_opp == 0.0 or int(dir_to_opp) == facing_direction):
 		print("[%s] ¡Golpe Pesado conectado sobre %s!" % [fighter_name, opponent.fighter_name])
 		opponent.take_damage(dmg, kb, stun, facing_direction)
+		add_fury(20.0 * fury_gain_mult)
 		hitstop_timer = stop
 		if opponent and is_instance_valid(opponent):
 			opponent.hitstop_timer = stop
@@ -621,7 +680,7 @@ func _execute_heavy_attack() -> void:
 # ---------------------------------------------------------------------------
 func _execute_air_attack() -> void:
 	var data   = AIR_ATTACK_DATA
-	var dmg:    float = data["damage"]
+	var dmg:    float = data["damage"] * damage_multiplier
 	var cd:     float = data["cooldown"]
 	var kb:     float = data["knockback"]
 	var stun:   float = data["hitstun"]
@@ -654,12 +713,59 @@ func _execute_air_attack() -> void:
 	if dist <= eff_range and (dir_to_opp == 0.0 or int(dir_to_opp) == facing_direction):
 		print("[%s] ¡Ataque aéreo impactó sobre %s!" % [fighter_name, opponent.fighter_name])
 		opponent.take_damage(dmg, kb, stun, facing_direction)
+		add_fury(15.0 * fury_gain_mult)
 		hitstop_timer = stop
 		if opponent and is_instance_valid(opponent):
 			opponent.hitstop_timer = stop
 		emit_signal("shake_requested", 4.5)
 	else:
 		print("[%s] Ataque aéreo falló al aire." % fighter_name)
+
+# ---------------------------------------------------------------------------
+# Golpe Especial ("Gekitotsu Breaker" — Furia 100%)
+# ---------------------------------------------------------------------------
+func _execute_special_attack() -> void:
+	fury = 0.0
+	emit_signal("fury_changed", fury, max_fury)
+	emit_signal("special_attack_executed")
+	emit_signal("punched")
+
+	can_punch            = false
+	punch_cooldown_timer = 0.55
+	punch_visual_timer   = 0.30
+	_reset_combo()
+
+	if fist_visual:
+		fist_visual.visible = true
+
+	_apply_micro_advance(30.0)
+	_flash_color(Color(1.0, 0.75, 0.1, 1.0), 0.15)
+
+	var base_special_dmg: float = 55.0
+	var dmg:              float = base_special_dmg * damage_multiplier
+	var kb:               float = 520.0
+	var stun:             float = 0.45
+	var stop:             float = 0.09
+	var eff_range:        float = punch_range * 1.6
+
+	print("[%s] ¡¡¡GEKITOTSU BREAKER (GOLPE ESPECIAL)!!! Daño: %.1f | Furia consumida" % [fighter_name, dmg])
+
+	_resolve_opponent()
+	if opponent == null or not is_instance_valid(opponent) or opponent.is_dead:
+		return
+
+	var dist:       float = abs(opponent.global_position.x - global_position.x)
+	var dir_to_opp: float = sign(opponent.global_position.x - global_position.x)
+
+	if dist <= eff_range and (dir_to_opp == 0.0 or int(dir_to_opp) == facing_direction):
+		print("[%s] ¡¡¡GEKITOTSU BREAKER IMPACTÓ SOBRE %s!!!" % [fighter_name, opponent.fighter_name])
+		opponent.take_damage(dmg, kb, stun, facing_direction)
+		hitstop_timer = stop
+		if opponent and is_instance_valid(opponent):
+			opponent.hitstop_timer = stop
+		emit_signal("shake_requested", 12.0)
+	else:
+		print("[%s] Gekitotsu Breaker falló al aire." % fighter_name)
 
 # ---------------------------------------------------------------------------
 # Método retrocompatible de golpe
@@ -732,6 +838,9 @@ func take_damage(amount: float, knockback: float = 0.0, hitstun: float = 0.24, a
 		health         = current_health
 		emit_signal("health_changed", current_health, max_health)
 
+		# Cargar un poco de furia al bloquear
+		add_fury(5.0 * fury_gain_mult)
+
 		# Guardia: blockstun breve (0.10s) y retroceso corto (85 px/s) sin abrir la guardia
 		blockstun_timer      = 0.10
 		knockback_velocity.x = float(push_dir) * 85.0
@@ -752,14 +861,15 @@ func take_damage(amount: float, knockback: float = 0.0, hitstun: float = 0.24, a
 	_reset_combo()
 	can_punch = true
 
-	# Hitstun y knockback amortiguado
-	hitstun_timer        = hitstun
+	# Hitstun mitigado por Disciplina y knockback amortiguado
+	var eff_hitstun: float = hitstun * clamp(1.0 - float(discipline_stat) * 0.005, 0.65, 1.0)
+	hitstun_timer        = eff_hitstun
 	knockback_velocity.x = float(push_dir) * knockback
 
 	# Destello de impacto
 	_flash_color(Color(1.0, 1.0, 1.0, 1.0), 0.08)
 
-	print("[%s] Recibió %.1f daño. Hitstun: %.2fs, Knockback: %.1f px/s" % [fighter_name, effective, hitstun, knockback])
+	print("[%s] Recibió %.1f daño. Hitstun: %.2fs (base: %.2fs), Knockback: %.1f px/s" % [fighter_name, effective, eff_hitstun, hitstun, knockback])
 
 	if current_health <= 0.0:
 		_die()

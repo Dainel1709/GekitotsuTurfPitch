@@ -271,6 +271,22 @@ public:
         player_score = 0;
         opponent_score = 0;
     }
+
+    [[nodiscard]] float get_stamina_sprint_drain_rate() const noexcept {
+        return stamina_sprint_drain_rate;
+    }
+
+    void set_stamina_sprint_drain_rate(float rate) noexcept {
+        stamina_sprint_drain_rate = rate;
+    }
+
+    void apply_rpg_stats(int combat, int discipline) noexcept {
+        float disc_factor = std::clamp(1.0f - static_cast<float>(discipline) * 0.006f, 0.55f, 1.0f);
+        stamina_sprint_drain_rate = 35.0f * disc_factor;
+        float combat_factor = 1.0f + static_cast<float>(combat) * 0.008f;
+        base_kick_force = 16.0f * combat_factor;
+        max_kick_force = 28.0f * combat_factor;
+    }
 };
 
 } // namespace gtp
@@ -336,6 +352,9 @@ public:
     void set_opponent_score(int score);
     void reset_score();
     void apply_match_result(int player_score, int opponent_score);
+    void apply_rpg_stats(int combat, int discipline);
+    double get_stamina_sprint_drain_rate() const;
+    void set_stamina_sprint_drain_rate(double rate);
 };
 
 } // namespace godot
@@ -506,6 +525,18 @@ public:
 
     void apply_match_result(int player_score, int opponent_score) {
         physics.apply_match_result(player_score, opponent_score);
+    }
+
+    void apply_rpg_stats(int combat, int discipline) {
+        physics.apply_rpg_stats(combat, discipline);
+    }
+
+    [[nodiscard]] double get_stamina_sprint_drain_rate() const {
+        return static_cast<double>(physics.get_stamina_sprint_drain_rate());
+    }
+
+    void set_stamina_sprint_drain_rate(double rate) {
+        physics.set_stamina_sprint_drain_rate(static_cast<float>(rate));
     }
 };
 

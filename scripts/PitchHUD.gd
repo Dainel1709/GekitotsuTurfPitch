@@ -6,6 +6,9 @@ onready var tactic_label: Label = $HUDControl/ScorePanel/VBox/TacticLabel
 onready var pause_panel: PanelContainer = $HUDControl/PausePanel
 onready var goal_notice_label: Label = $HUDControl/GoalNoticeLabel
 onready var controls_hint: Label = $HUDControl/ControlsHint
+onready var fury_bar: ProgressBar = $HUDControl/ScorePanel/VBox/FuryContainer/FuryBar if has_node("HUDControl/ScorePanel/VBox/FuryContainer/FuryBar") else null
+onready var fury_label: Label = $HUDControl/ScorePanel/VBox/FuryContainer/FuryLabel if has_node("HUDControl/ScorePanel/VBox/FuryContainer/FuryLabel") else null
+onready var fury_notice_label: Label = $HUDControl/FuryNoticeLabel if has_node("HUDControl/FuryNoticeLabel") else null
 
 var mechanics = null
 var match_finished: bool = false
@@ -43,14 +46,37 @@ func _ready() -> void:
 	_update_clock_and_hud()
 	_update_controls_hint()
 
+	var players = get_tree().get_nodes_in_group("player")
+	for p in players:
+		if p.has_signal("fury_changed"):
+			p.connect("fury_changed", self, "_on_player_fury_changed")
+		if "fury" in p:
+			_on_player_fury_changed(p.fury, p.max_fury if "max_fury" in p else 100.0)
+
+func _on_player_fury_changed(fury_val: float, max_val: float) -> void:
+	if fury_bar:
+		fury_bar.max_value = max_val
+		fury_bar.value     = fury_val
+	if fury_label:
+		if fury_val >= 100.0:
+			fury_label.text = "¡FURIA LISTA!"
+			fury_label.modulate = Color(1.0, 0.35, 0.1)
+		else:
+			fury_label.text = "FURIA: %d%%" % int(fury_val)
+			fury_label.modulate = Color(1.0, 1.0, 1.0)
+	if fury_notice_label:
+		fury_notice_label.visible = (fury_val >= 100.0 and not match_finished)
+		if fury_val >= 100.0:
+			fury_notice_label.modulate = Color(1.0, 0.85, 0.1)
+
 func _update_controls_hint() -> void:
 	if controls_hint:
 		var gs = get_node_or_null("/root/GameSettings")
 		var scheme = gs.get_control_scheme() if (gs and gs.has_method("get_control_scheme")) else 0
 		if scheme == 0:
-			controls_hint.text = "FIFA: Cruz: Pase corto | O: Disparo | Δ: Pase al hueco | □: Centro | R: Sprint | L: Manual | SELECT: Táctica | START: Pausa"
+			controls_hint.text = "FIFA: Cruz: Pase corto | O: Disparo | L+O: Tiro Especial | Δ: Pase al hueco | □: Centro | R: Sprint | L: Manual"
 		else:
-			controls_hint.text = "PES: Cruz: Pase corto | O: Centro | Δ: Pase al hueco | □: Disparo | R: Sprint | L: Manual | SELECT: Táctica | START: Pausa"
+			controls_hint.text = "PES: Cruz: Pase corto | □: Disparo | L+□: Tiro Especial | Δ: Pase al hueco | O: Centro | R: Sprint | L: Manual"
 
 func _process(delta: float) -> void:
 	# 1. Botón START: Pausar / Reanudar el partido

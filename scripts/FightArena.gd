@@ -8,6 +8,8 @@ onready var player_hp_bar: ProgressBar = $CanvasLayer/TopPanel/HBox/PlayerBox/Pl
 onready var rival_hp_bar: ProgressBar = $CanvasLayer/TopPanel/HBox/RivalBox/RivalHPBar
 onready var player_hp_label: Label = $CanvasLayer/TopPanel/HBox/PlayerBox/PlayerHPLabel
 onready var rival_hp_label: Label = $CanvasLayer/TopPanel/HBox/RivalBox/RivalHPLabel
+onready var player_fury_bar: ProgressBar = $CanvasLayer/TopPanel/HBox/PlayerBox/PlayerFuryBar if has_node("CanvasLayer/TopPanel/HBox/PlayerBox/PlayerFuryBar") else null
+onready var player_fury_label: Label = $CanvasLayer/TopPanel/HBox/PlayerBox/PlayerFuryLabel if has_node("CanvasLayer/TopPanel/HBox/PlayerBox/PlayerFuryLabel") else null
 onready var message_label: Label = $CanvasLayer/MessageLabel
 onready var combo_label: Label = $CanvasLayer/ComboLabel if has_node("CanvasLayer/ComboLabel") else null
 onready var camera = $Camera2D if has_node("Camera2D") else null
@@ -56,6 +58,36 @@ func _ready() -> void:
 	player_hp_bar.value     = player.current_health
 	rival_hp_bar.max_value  = rival.max_health
 	rival_hp_bar.value       = rival.current_health
+
+	# Leer RPG Stats (Combate y Disciplina) desde backend C++ o metadatos
+	var combat: int = 0
+	var discipline: int = 0
+	if ClassDB.class_exists("GekitotsuStoryManager"):
+		var sm = null
+		if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
+			sm = ClassDB.instantiate("GekitotsuStoryManager")
+		elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
+			sm = ClassDB.instance("GekitotsuStoryManager")
+		if sm:
+			if sm.has_method("get_combat_technique"):
+				combat = sm.get_combat_technique()
+			if sm.has_method("get_discipline_points"):
+				discipline = sm.get_discipline_points()
+	elif get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats"):
+		var stats = get_tree().root.get_meta("gtp_stats")
+		combat = stats.get("combat", 0)
+		discipline = stats.get("discipline", 0)
+
+	if player and player.has_method("apply_rpg_stats"):
+		player.apply_rpg_stats(combat, discipline)
+
+	if player.has_signal("fury_changed"):
+		player.connect("fury_changed", self, "_on_player_fury_changed")
+
+	if player_fury_bar:
+		player_fury_bar.max_value = player.max_fury
+		player_fury_bar.value     = player.fury
+	_update_fury_ui(player.fury if "fury" in player else 0.0)
 
 	_update_labels()
 
@@ -111,6 +143,20 @@ func _on_fighter_combo_updated(_fighter, step: int, text: String) -> void:
 
 func _on_fighter_combo_broken() -> void:
 	_combo_hide_timer = 0.2
+
+func _on_player_fury_changed(new_fury: float, _max_fury: float) -> void:
+	if player_fury_bar:
+		player_fury_bar.value = new_fury
+	_update_fury_ui(new_fury)
+
+func _update_fury_ui(fury_val: float) -> void:
+	if player_fury_label:
+		if fury_val >= 100.0:
+			player_fury_label.text = "¡FURIA LISTA! (A+X / Z+S)"
+			player_fury_label.modulate = Color(1.0, 0.35, 0.1)
+		else:
+			player_fury_label.text = "Furia: %d%%" % int(fury_val)
+			player_fury_label.modulate = Color(0.9, 0.8, 0.3)
 
 func _setup_fighters() -> void:
 	# Carga defensiva: si un nodo llega sin el script de Fighter.gd, lo asigna ahora

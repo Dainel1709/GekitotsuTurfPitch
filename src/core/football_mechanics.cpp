@@ -46,6 +46,9 @@ void FootballMechanics::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_opponent_score", "score"), &FootballMechanics::set_opponent_score);
     ClassDB::bind_method(D_METHOD("reset_score"), &FootballMechanics::reset_score);
     ClassDB::bind_method(D_METHOD("apply_match_result", "player_score", "opponent_score"), &FootballMechanics::apply_match_result);
+    ClassDB::bind_method(D_METHOD("apply_rpg_stats", "combat", "discipline"), &FootballMechanics::apply_rpg_stats);
+    ClassDB::bind_method(D_METHOD("get_stamina_sprint_drain_rate"), &FootballMechanics::get_stamina_sprint_drain_rate);
+    ClassDB::bind_method(D_METHOD("set_stamina_sprint_drain_rate", "rate"), &FootballMechanics::set_stamina_sprint_drain_rate);
 
     // Propiedades expuestas al Inspector de Godot
     ClassDB::add_property("FootballMechanics", PropertyInfo(Variant::FLOAT, "base_speed"), "set_base_speed", "get_base_speed");
@@ -200,6 +203,18 @@ void FootballMechanics::set_opponent_score(int score) {
 
 void FootballMechanics::reset_score() {
     physics.reset_score();
+}
+
+void FootballMechanics::apply_rpg_stats(int combat, int discipline) {
+    physics.apply_rpg_stats(combat, discipline);
+}
+
+double FootballMechanics::get_stamina_sprint_drain_rate() const {
+    return static_cast<double>(physics.get_stamina_sprint_drain_rate());
+}
+
+void FootballMechanics::set_stamina_sprint_drain_rate(double rate) {
+    physics.set_stamina_sprint_drain_rate(static_cast<float>(rate));
 }
 
 } // namespace godot
