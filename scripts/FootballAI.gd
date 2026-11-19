@@ -52,23 +52,25 @@ func _ready() -> void:
 		facing_direction = Vector3(0, 0, 1)
 
 	initial_facing = facing_direction
-	# Aplicar material según rol
+
+	# Aplicar material independiente sobre el nodo hijo MeshInstance
+	var mat = SpatialMaterial.new()
+	mat.roughness = 0.4
 	match role:
 		"goalkeeper":
-			var mat = SpatialMaterial.new()
 			if is_player_team:
 				mat.albedo_color = Color(0.10, 0.30, 0.75)
 			else:
 				mat.albedo_color = Color(0.75, 0.28, 0.10)
-			material_override = mat
 		"teammate":
-			var mat = SpatialMaterial.new()
 			mat.albedo_color = Color(0.15, 0.85, 0.55)
-			material_override = mat
 		"opponent":
-			var mat = SpatialMaterial.new()
 			mat.albedo_color = Color(0.90, 0.16, 0.16)
-			material_override = mat
+
+	for child in get_children():
+		if child is MeshInstance:
+			child.material_override = mat
+			break
 
 func reset_position() -> void:
 	global_transform.origin = initial_position
@@ -110,19 +112,19 @@ func _physics_process(delta: float) -> void:
 	if decision_ready:
 		ai_decision_timer = 0.22
 
-	# Estamina y agotamiento
+	# Estamina y agotamiento (drena al esprintar y recupera al trotar)
+	var is_sprinting_now: bool = velocity.length() > move_speed + 0.5
 	if not is_exhausted:
-		if stamina > 10.0:
-			# Recuperación pasiva
-			stamina = min(max_stamina, stamina + 12.0 * delta)
+		if is_sprinting_now:
+			stamina = max(0.0, stamina - 18.0 * delta)
 		else:
+			stamina = min(max_stamina, stamina + 12.0 * delta)
+		if stamina <= 10.0:
 			is_exhausted = true
 	else:
-		# Agotado: velocidad reducida, recuperación hasta 35
+		stamina = min(max_stamina, stamina + 12.0 * delta)
 		if stamina >= 35.0:
 			is_exhausted = false
-		else:
-			stamina = min(max_stamina, stamina + 12.0 * delta)
 
 	# Selección de comportamiento según rol (solo cuando decision_ready)
 	if decision_ready:
@@ -134,7 +136,6 @@ func _physics_process(delta: float) -> void:
 			"teammate":
 				_process_teammate(delta)
 	else:
-		# Cuando no es tiempo de decisión, solo suavizamos facing
 		facing_direction = facing_direction.linear_interpolate(facing_direction, clamp(7.0 * delta, 0.0, 1.0)).normalized()
 
 	# Mantener dentro de los límites del campo (excepto porteros)
@@ -154,19 +155,18 @@ func _physics_process(delta: float) -> void:
 	for ally in allies:
 		if ally == self:
 			continue
-		if not ally.has_method("global_transform"):
+		if not (ally is Spatial):
 			continue
 		var diff = global_transform.origin - ally.global_transform.origin
 		var dist = diff.length()
 		if dist < separation_radius and dist > 0.001:
-			# Aplicar pequeña fuerza de repulsión
 			var push = diff.normalized() * (separation_radius - dist) * 0.5
 			translation += push * delta
 
 # -------------------------------------------------------------------------
 # 1. COMPORTAMIENTO DE PORTEROS ("goalkeeper")
 # -------------------------------------------------------------------------
-func _process_goalkeeper(delta: float) -> void:
+func _process_goalkeeper(_delta: float) -> void:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return
 
@@ -218,24 +218,34 @@ func _process_goalkeeper(delta: float) -> void:
 # -------------------------------------------------------------------------
 # 2. COMPORTAMIENTO DE RIVALES DE CAMPO ("opponent")
 # -------------------------------------------------------------------------
-func _process_opponent(delta: float) -> void:
+func _process_opponent(_delta: float) -> void:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return
 
 	var my_pos: Vector3 = global_transform.origin
 	var ball_pos: Vector3 = ball_ref.global_transform.origin
+	var speed_mult: float = 0.75 if is_exhausted else 1.0
 
-	# Detectar portador actual
+	# Detectar portador actual de forma segura
 	var carrier = _find_allied_ball_carrier()
-	var carrier_is_player = carrier != null and carrier.is_player_team if carrier else false
-	# Si un compañero de mismo equipo ya tiene el balón, no perseguir
+	var carrier_is_player: bool = false
+	if carrier != null:
+		if carrier.is_in_group("player"):
+			carrier_is_player = true
+		elif "is_player_team" in carrier:
+			carrier_is_player = carrier.is_player_team
+
+	# Si un compañero del mismo equipo ya tiene el balón, desmarcarse
 	if carrier != null and carrier != self and carrier_is_player == is_player_team:
-		# Desmarcarse lateralmente
 		var side_x: float = -7.5 if my_pos.x > 0 else 7.5
 		var target_pos = Vector3(side_x, my_pos.y, my_pos.z)
 		var to_target = target_pos - my_pos
-		facing_direction = to_target.normalized()
-		velocity = facing_direction * move_speed
+		to_target.y = 0.0
+		if to_target.length() > 0.2:
+			facing_direction = to_target.normalized()
+			velocity = facing_direction * move_speed * speed_mult
+		else:
+			velocity = Vector3.ZERO
 		velocity = move_and_slide(velocity, Vector3.UP)
 		return
 
@@ -245,7 +255,7 @@ func _process_opponent(delta: float) -> void:
 		var to_goal = target_goal - my_pos
 		to_goal.y = 0.0
 		facing_direction = to_goal.normalized()
-		velocity = facing_direction * dribble_speed
+		velocity = facing_direction * dribble_speed * speed_mult
 		velocity = move_and_slide(velocity, Vector3.UP)
 
 		# Arrastrar balón
@@ -278,25 +288,27 @@ func _process_opponent(delta: float) -> void:
 
 		if dist > 0.1:
 			facing_direction = to_dest.normalized()
-			velocity = facing_direction * sprint_speed
+			velocity = facing_direction * sprint_speed * speed_mult
 		else:
 			velocity = Vector3.ZERO
 
 		velocity = move_and_slide(velocity, Vector3.UP)
 
-		# Robo por contacto
+		# Robo por contacto blindado contra distintos scripts
 		if carrier and dist <= 1.35 and possession_cooldown <= 0.0:
 			if "is_dribbling" in carrier:
 				carrier.is_dribbling = false
+			if "is_ball_controlled" in carrier:
 				carrier.is_ball_controlled = false
 			if "has_ball" in carrier:
 				carrier.has_ball = false
+			if carrier.has_method("lose_ball"):
+				carrier.lose_ball()
 			has_ball = true
 			is_dribbling = true
-			possession_cooldown = 0.35
+			possession_cooldown = 0.55
 			print("[AI Opponent] ¡Rival contacta y arrebata el balón!")
 		elif not carrier and dist <= 1.4 and ball_ref.linear_velocity.length() < 18.0 and possession_cooldown <= 0.0:
-			# Captura balón suelto
 			has_ball = true
 			is_dribbling = true
 			print("[AI Opponent] ¡Rival captura el balón suelto!")
@@ -304,23 +316,33 @@ func _process_opponent(delta: float) -> void:
 # -------------------------------------------------------------------------
 # 3. COMPORTAMIENTO DE COMPAÑERO ALIADO ("teammate")
 # -------------------------------------------------------------------------
-func _process_teammate(delta: float) -> void:
+func _process_teammate(_delta: float) -> void:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return
 
 	var my_pos: Vector3 = global_transform.origin
 	var ball_pos: Vector3 = ball_ref.global_transform.origin
+	var speed_mult: float = 0.75 if is_exhausted else 1.0
 
-	# Detectar portador actual
+	# Detectar portador actual de forma segura
 	var carrier = _find_allied_ball_carrier()
-	var carrier_is_player = carrier != null and carrier.is_player_team if carrier else false
+	var carrier_is_player: bool = false
+	if carrier != null:
+		if carrier.is_in_group("player"):
+			carrier_is_player = true
+		elif "is_player_team" in carrier:
+			carrier_is_player = carrier.is_player_team
+
 	if carrier != null and carrier != self and carrier_is_player == is_player_team:
-		# Desmarcarse lateralmente
 		var side_x: float = -7.5 if my_pos.x > 0 else 7.5
 		var target_pos = Vector3(side_x, my_pos.y, my_pos.z)
 		var to_target = target_pos - my_pos
-		facing_direction = to_target.normalized()
-		velocity = facing_direction * move_speed
+		to_target.y = 0.0
+		if to_target.length() > 0.2:
+			facing_direction = to_target.normalized()
+			velocity = facing_direction * move_speed * speed_mult
+		else:
+			velocity = Vector3.ZERO
 		velocity = move_and_slide(velocity, Vector3.UP)
 		return
 
@@ -330,7 +352,7 @@ func _process_teammate(delta: float) -> void:
 		var to_goal = target_goal - my_pos
 		to_goal.y = 0.0
 		facing_direction = to_goal.normalized()
-		velocity = facing_direction * dribble_speed
+		velocity = facing_direction * dribble_speed * speed_mult
 		velocity = move_and_slide(velocity, Vector3.UP)
 
 		# Arrastrar balón
@@ -359,7 +381,6 @@ func _process_teammate(delta: float) -> void:
 			ryu_has_ball = true
 
 		if ryu_has_ball:
-			# Desmarque opuesto a Ryu
 			var ryu_pos = ryu.global_transform.origin
 			var flank_x: float = 6.0 if ryu_pos.x <= 0.0 else -6.0
 			var unmark_z: float = clamp(ryu_pos.z - 5.5, -9.5, 7.0)
@@ -371,21 +392,20 @@ func _process_teammate(delta: float) -> void:
 
 			if dist > 0.4:
 				facing_direction = to_target.normalized()
-				velocity = facing_direction * move_speed
+				velocity = facing_direction * move_speed * speed_mult
 			else:
 				velocity = Vector3.ZERO
 				facing_direction = Vector3(0, 0, -1)
 
 			velocity = move_and_slide(velocity, Vector3.UP)
 		else:
-			# Balón suelto o pase
 			var to_ball = ball_pos - my_pos
 			to_ball.y = 0.0
 			var dist_ball = to_ball.length()
 
 			if dist_ball <= 12.0:
 				facing_direction = to_ball.normalized()
-				velocity = facing_direction * sprint_speed
+				velocity = facing_direction * sprint_speed * speed_mult
 				velocity = move_and_slide(velocity, Vector3.UP)
 
 				if dist_ball <= 1.4 and ball_ref.linear_velocity.length() < 18.0 and possession_cooldown <= 0.0:
@@ -393,20 +413,19 @@ func _process_teammate(delta: float) -> void:
 					is_dribbling = true
 					print("[AI Teammate] ¡Compañero aliado controla el balón!")
 			else:
-				# Posicionamiento táctico
 				var tactic_pos = Vector3(clamp(ball_pos.x * 0.5, -7.0, 7.0), 0.8, clamp(ball_pos.z + 4.0, -4.0, 8.0))
 				var to_tac = tactic_pos - my_pos
 				to_tac.y = 0.0
 				if to_tac.length() > 0.5:
-					velocity = to_tac.normalized() * move_speed
+					velocity = to_tac.normalized() * move_speed * speed_mult
 					facing_direction = velocity.normalized()
 				else:
 					velocity = Vector3.ZERO
 					facing_direction = Vector3(0, 0, -1)
-					velocity = move_and_slide(velocity, Vector3.UP)
+				velocity = move_and_slide(velocity, Vector3.UP)
 
 # -------------------------------------------------------------------------
-# 4. PETICIÓN DE PASO DESDE RYU (Botón L1 / Q)
+# 4. PETICIÓN DE PASE DESDE RYU (Botón L1 / Q)
 # -------------------------------------------------------------------------
 func receive_pass_call(target_player: Node) -> void:
 	_resolve_ball()
