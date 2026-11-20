@@ -203,7 +203,7 @@ func _physics_process(delta: float) -> void:
 	# Mantener dentro de los límites del campo (excepto porteros)
 	if role != "goalkeeper":
 		translation.x = clamp(translation.x, -19.0, 19.0)
-		translation.z = clamp(translation.z, -12.0, 12.0)
+		translation.z = clamp(translation.z, -23.8, 23.8)
 
 	# Rotación suave hacia facing_direction
 	var target_look = translation + facing_direction
@@ -255,10 +255,10 @@ func _process_goalkeeper(_delta: float, decision_ready: bool = true) -> void:
 		var dist_to_ball: float = my_pos.distance_to(ball_pos)
 		var in_save_area: bool = false
 		if is_player_team:
-			if ball_pos.z >= 9.6 and ball_pos.z <= 12.3 and abs(ball_pos.x) <= 4.2:
+			if ball_pos.z >= 19.6 and ball_pos.z <= 23.8 and abs(ball_pos.x) <= 4.2:
 				in_save_area = true
 		else:
-			if ball_pos.z <= -9.6 and ball_pos.z >= -12.3 and abs(ball_pos.x) <= 4.2:
+			if ball_pos.z <= -19.6 and ball_pos.z >= -23.8 and abs(ball_pos.x) <= 4.2:
 				in_save_area = true
 		if dist_to_ball <= 2.2:
 			in_save_area = true
@@ -314,14 +314,14 @@ func _process_opponent(_delta: float, decision_ready: bool = true) -> void:
 
 	if has_ball:
 		# Conducir hacia la portería Sur
-		var target_goal = Vector3(0.0, 0.8, 11.75)
+		var target_goal = Vector3(0.0, 0.8, 23.1)
 		var to_goal = target_goal - my_pos
 		to_goal.y = 0.0
 		target_facing = to_goal.normalized()
 		target_velocity = target_facing * dribble_speed * speed_mult
 
-		if decision_ready and my_pos.z >= 2.0 and kick_cooldown <= 0.0:
-			var shot_target = Vector3(rand_range(-2.5, 2.5), 0.5, 11.75)
+		if decision_ready and my_pos.z >= 4.0 and kick_cooldown <= 0.0:
+			var shot_target = Vector3(rand_range(-2.5, 2.5), 0.5, 23.1)
 			var shot_dir = (shot_target - ball_pos).normalized()
 			var shot_impulse = Vector3(shot_dir.x * 20.0, 1.2, shot_dir.z * 20.0)
 			ball_ref.linear_velocity = shot_impulse
@@ -386,7 +386,7 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 		if ryu:
 			var ryu_pos = ryu.global_transform.origin
 			var flank_x: float = 7.0 if ryu_pos.x <= 0.0 else -7.0
-			var unmark_z: float = clamp(ryu_pos.z - 4.5, -9.5, 7.0)
+			var unmark_z: float = clamp(ryu_pos.z - 4.5, -19.6, 14.0)
 			var target_pos = Vector3(flank_x, 0.8, unmark_z)
 
 			# Mantener al menos 4.5 m de separación respecto a Ryu
@@ -431,14 +431,14 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 
 	if has_ball:
 		# Conducir hacia la portería rival (Norte)
-		var target_goal = Vector3(0.0, 0.8, -11.75)
+		var target_goal = Vector3(0.0, 0.8, -23.1)
 		var to_goal = target_goal - my_pos
 		to_goal.y = 0.0
 		target_facing = to_goal.normalized()
 		target_velocity = target_facing * dribble_speed * speed_mult
 
-		if decision_ready and my_pos.z <= -2.0 and kick_cooldown <= 0.0:
-			var shot_target = Vector3(rand_range(-2.2, 2.2), 0.5, -11.75)
+		if decision_ready and my_pos.z <= -4.0 and kick_cooldown <= 0.0:
+			var shot_target = Vector3(rand_range(-2.2, 2.2), 0.5, -23.1)
 			var shot_dir = (shot_target - ball_pos).normalized()
 			var shot_impulse = Vector3(shot_dir.x * 20.0, 1.2, shot_dir.z * 20.0)
 			ball_ref.linear_velocity = shot_impulse
@@ -458,7 +458,7 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 		if ryu_has_ball:
 			var ryu_pos = ryu.global_transform.origin
 			var flank_x: float = 6.0 if ryu_pos.x <= 0.0 else -6.0
-			var unmark_z: float = clamp(ryu_pos.z - 5.5, -9.5, 7.0)
+			var unmark_z: float = clamp(ryu_pos.z - 5.5, -19.6, 14.0)
 			var target_pos = Vector3(flank_x, 0.8, unmark_z)
 
 			var to_target = target_pos - my_pos
@@ -485,7 +485,7 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 					is_dribbling = true
 					print("[AI Teammate] ¡Compañero aliado controla el balón!")
 			else:
-				var tactic_pos = Vector3(clamp(ball_pos.x * 0.5, -7.0, 7.0), 0.8, clamp(ball_pos.z + 4.0, -4.0, 8.0))
+				var tactic_pos = Vector3(clamp(ball_pos.x * 0.5, -7.0, 7.0), 0.8, clamp(ball_pos.z + 4.0, -6.0, 17.0))
 				var to_tac = tactic_pos - my_pos
 				to_tac.y = 0.0
 				if to_tac.length() > 0.5:

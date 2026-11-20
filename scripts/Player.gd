@@ -861,7 +861,7 @@ func _execute_special_shot() -> void:
 
 	# Orientar hacia la portería rival (RivalGoalArea en Z negativo)
 	var rival_goal = get_node_or_null("../RivalGoalArea")
-	var target_goal_pos = Vector3(0.0, 0.6, -12.0)
+	var target_goal_pos = Vector3(0.0, 0.6, -23.45)
 	if rival_goal:
 		target_goal_pos = rival_goal.global_transform.origin
 		target_goal_pos.y = 0.6

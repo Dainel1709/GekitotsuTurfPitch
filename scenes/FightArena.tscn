@@ -136,15 +136,21 @@ transparent_bg = true
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.633483, 0 )
 
 [node name="playerfutblue" parent="Player/ModelViewport/ModelRoot" instance=ExtResource( 3 )]
-transform = Transform( 1, 0, 0, 0, -1, 8.74228e-08, 0, -8.74228e-08, -1, 0, 2.00654, 0 )
+transform = Transform( -0.766045, -5.61943e-08, 0.642787, 0, -1, -8.74228e-08, 0.642787, -6.69697e-08, 0.766045, 0, 2.00654, 0 )
+
+[node name="AnimationPlayer" parent="Player/ModelViewport/ModelRoot/playerfutblue" index="1"]
+autoplay = "Armature|mixamocom|Layer0"
 
 [node name="Camera" type="Camera" parent="Player/ModelViewport/ModelRoot"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 1.66209 )
 current = true
 
+[node name="DirectionalLight" type="DirectionalLight" parent="Player/ModelViewport"]
+transform = Transform( 0.906308, -0.144544, 0.397131, 0, 0.939693, 0.34202, -0.422618, -0.309976, 0.851651, 0, 0, 0 )
+
 [node name="FighterSprite3D" type="Sprite" parent="Player"]
-position = Vector2( 1, -34 )
-scale = Vector2( 1.20313, 1.20625 )
+position = Vector2( -0.437464, -56.1563 )
+scale = Vector2( 0.946289, 1.01055 )
 texture = SubResource( 4 )
 
 [node name="Rival" type="KinematicBody2D" parent="." groups=["fighters", "rival"]]

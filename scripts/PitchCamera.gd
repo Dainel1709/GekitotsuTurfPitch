@@ -4,16 +4,16 @@ extends Camera
 # and preserving the angled aerial perspective set on OverheadCamera.
 
 export var tilt_x_deg: float = -74.0
-export var base_height: float = 22.0
-export var max_height: float = 34.0
-export var z_offset_from_tilt: float = 8.0
+export var base_height: float = 34.0
+export var max_height: float = 50.0
+export var z_offset_from_tilt: float = 16.0
 export var margin: float = 10.0
-export var look_ahead_dist: float = 6.0
+export var look_ahead_dist: float = 8.0
 export var smooth_speed: float = 5.0
 
 # Fallback values if used in orthogonal mode
-export var min_size: float = 26.0
-export var max_size: float = 44.0
+export var min_size: float = 36.0
+export var max_size: float = 62.0
 
 var player = null
 var ball = null
@@ -49,7 +49,7 @@ func _process(delta):
 	var focus = player_pos.linear_interpolate(ball_pos, 0.65)
 
 	# Slight look-ahead towards north or south goal in the final third
-	var field_z_half = 12.0
+	var field_z_half = 24.5
 	if ball_pos.z > field_z_half * 0.66:
 		focus.z += look_ahead_dist
 	elif ball_pos.z < -field_z_half * 0.66:
@@ -65,7 +65,7 @@ func _process(delta):
 
 	var desired_y = clamp(base_height + spread * 0.35, base_height, max_height)
 	var desired_x = clamp(focus.x, -18.0, 18.0)
-	var desired_z = clamp(focus.z + z_offset_from_tilt, -14.0, 14.0)
+	var desired_z = clamp(focus.z + z_offset_from_tilt, -28.0, 28.0)
 
 	var blend = clamp(smooth_speed * delta, 0.0, 1.0)
 	var next_pos = translation
