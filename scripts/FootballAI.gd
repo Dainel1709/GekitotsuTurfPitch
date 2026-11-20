@@ -17,6 +17,10 @@ var is_exhausted: bool = false
 var ai_decision_timer: float = 0.0
 var separation_radius: float = 3.2
 
+# Variables de prueba en cancha (Frenar / Pausar)
+export(bool) var is_frozen_for_test: bool = false
+var test_freeze_timer: float = 0.0
+
 var velocity: Vector3 = Vector3.ZERO
 var target_velocity: Vector3 = Vector3.ZERO
 var facing_direction: Vector3 = Vector3(0, 0, 1)
@@ -74,6 +78,15 @@ func _ready() -> void:
 			child.material_override = mat
 			break
 
+func set_test_freeze(frozen: bool, duration: float = 0.0) -> void:
+	is_frozen_for_test = frozen
+	test_freeze_timer = max(0.0, duration)
+	if is_frozen_for_test or test_freeze_timer > 0.0:
+		velocity = Vector3.ZERO
+		target_velocity = Vector3.ZERO
+		has_ball = false
+		is_dribbling = false
+
 func reset_position() -> void:
 	global_transform.origin = initial_position
 	facing_direction = initial_facing
@@ -85,6 +98,8 @@ func reset_position() -> void:
 	possession_cooldown = 0.0
 	kick_cooldown = 0.0
 	tackle_cooldown = 0.0
+	is_frozen_for_test = false
+	test_freeze_timer = 0.0
 
 func lose_ball() -> void:
 	has_ball = false
@@ -101,6 +116,21 @@ func _resolve_ball() -> void:
 
 func _physics_process(delta: float) -> void:
 	_resolve_ball()
+
+	# Manejo de congelamiento para pruebas en cancha (tecla F)
+	if role == "opponent":
+		if test_freeze_timer > 0.0:
+			test_freeze_timer = max(0.0, test_freeze_timer - delta)
+			if test_freeze_timer <= 0.0:
+				test_freeze_timer = 0.0
+				is_frozen_for_test = false
+
+		if is_frozen_for_test or test_freeze_timer > 0.0:
+			velocity = Vector3.ZERO
+			target_velocity = Vector3.ZERO
+			has_ball = false
+			is_dribbling = false
+			return
 
 	# Temporizadores generales
 	if possession_cooldown > 0.0:

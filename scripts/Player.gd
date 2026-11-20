@@ -60,6 +60,10 @@ var prev_btn_l: bool = false
 # Acción defensiva: Robo / Entrada (Tackle)
 var tackle_cooldown: float = 0.0
 
+# Herramienta de pruebas: congelar rivales (Tecla F)
+var prev_key_f: bool = false
+var opponents_frozen: bool = false
+
 # Variables de respaldo local (Fallback si la librería nativa no está cargada)
 var fallback_base_speed: float = 10.0
 var fallback_stamina: float = 100.0
@@ -225,6 +229,15 @@ func _physics_process(delta: float) -> void:
 	if cur_btn_l and not prev_btn_l:
 		_on_button_l_pressed()
 	prev_btn_l = cur_btn_l
+
+	# Herramienta de prueba en cancha: Tecla F para frenar / pausar rivales
+	var cur_key_f: bool = Input.is_key_pressed(KEY_F)
+	if cur_key_f and not prev_key_f:
+		var is_shift: bool = Input.is_key_pressed(KEY_SHIFT)
+		var is_ctrl: bool = Input.is_key_pressed(KEY_CONTROL)
+		var pulse_freeze: bool = is_shift or (opponents_frozen and is_ctrl)
+		_toggle_opponents_freeze(pulse_freeze)
+	prev_key_f = cur_key_f
 
 	# 4. Procesamiento de acciones PPSSPP (Cruz, Círculo, Triángulo, Cuadrado)
 	_handle_ppsspp_actions(delta)
@@ -591,22 +604,140 @@ func _execute_tackle() -> void:
 		tackle_cooldown = 0.45
 		print("[Player] Entrada fallida: sin rival ni balón en rango de 1.8 m.")
 
+# --- Herramienta de Pruebas en Cancha: Congelar / Frenar Rivales ---
+func _toggle_opponents_freeze(pulse: bool = false) -> void:
+	var tree = get_tree()
+	if not tree:
+		return
+	var opponents = tree.get_nodes_in_group("opponents")
+	if pulse:
+		opponents_frozen = true
+		for opp in opponents:
+			if opp.has_method("set_test_freeze"):
+				opp.set_test_freeze(true, 1.5)
+			elif "is_frozen_for_test" in opp:
+				opp.is_frozen_for_test = true
+				if "test_freeze_timer" in opp:
+					opp.test_freeze_timer = 1.5
+		print("[Test F] Rivales FRENADOS por pulso (1.5s)")
+	else:
+		opponents_frozen = not opponents_frozen
+		for opp in opponents:
+			if opp.has_method("set_test_freeze"):
+				opp.set_test_freeze(opponents_frozen, 0.0)
+			elif "is_frozen_for_test" in opp:
+				opp.is_frozen_for_test = opponents_frozen
+				if "test_freeze_timer" in opp:
+					opp.test_freeze_timer = 0.0
+		if opponents_frozen:
+			print("[Test F] Rivales FRENADOS para pruebas")
+		else:
+			print("[Test F] Rivales ACTIVOS")
+
+# --- Asistencia de Pase Hacia Compañeros Aliados ---
+func _find_assisted_teammate(base_dir: Vector3) -> Dictionary:
+	if manual_aim_mode:
+		return {}
+
+	var tree = get_tree()
+	if not tree:
+		return {}
+
+	var teammates = tree.get_nodes_in_group("teammates")
+	var best_teammate = null
+	var best_score: float = -999.0
+	var best_dist: float = 0.0
+	var best_dir: Vector3 = Vector3.ZERO
+	var my_pos: Vector3 = global_transform.origin
+
+	for t in teammates:
+		if t == self or not (t is Spatial) or not is_instance_valid(t):
+			continue
+		var t_pos: Vector3 = t.global_transform.origin
+		var to_t: Vector3 = t_pos - my_pos
+		to_t.y = 0.0
+		var dist: float = to_t.length()
+		if dist < 0.5 or dist > 28.0:
+			continue
+		var dir_to_t: Vector3 = to_t.normalized()
+		var dot: float = base_dir.dot(dir_to_t)
+		if dot < 0.35:
+			continue
+
+		var score: float = dot * 2.0 - (dist / 28.0) * 0.4
+		if score > best_score:
+			best_score = score
+			best_teammate = t
+			best_dist = dist
+			best_dir = dir_to_t
+
+	if best_teammate != null:
+		return {
+			"node": best_teammate,
+			"dist": best_dist,
+			"dir": best_dir
+		}
+	return {}
+
+func _get_assisted_pass_vector(base_dir: Vector3, pass_type: String) -> Dictionary:
+	var assist_info = _find_assisted_teammate(base_dir)
+	var final_dir: Vector3 = base_dir
+	var dist: float = 0.0
+	var has_assist: bool = false
+
+	if not assist_info.empty():
+		has_assist = true
+		dist = assist_info["dist"]
+		var t_node = assist_info["node"]
+		var target_dir: Vector3 = assist_info["dir"]
+
+		if pass_type == "through":
+			var lead_offset: Vector3 = Vector3(0, 0, -2.4)
+			if "facing_direction" in t_node and t_node.facing_direction.length_squared() > 0.01:
+				lead_offset = t_node.facing_direction.normalized() * 2.4
+			var lead_pos: Vector3 = t_node.global_transform.origin + lead_offset
+			var to_lead: Vector3 = lead_pos - global_transform.origin
+			to_lead.y = 0.0
+			if to_lead.length() > 0.5:
+				target_dir = to_lead.normalized()
+				dist = to_lead.length()
+
+		# Mezcla moderada: ~60% hacia compañero / ~40% dirección apuntada (asistencia 55%-65%)
+		final_dir = (base_dir * 0.40 + target_dir * 0.60).normalized()
+
+	return {
+		"dir": final_dir,
+		"dist": dist,
+		"assisted": has_assist
+	}
+
 # --- Botón X: Pase Corto Raso ---
 func _execute_short_pass() -> void:
 	if not _can_kick_ball():
 		return
 
-	var pass_dir = _get_action_direction()
+	var base_dir = _get_action_direction()
+	var assist_data = _get_assisted_pass_vector(base_dir, "short")
+	var pass_dir: Vector3 = assist_data["dir"]
 	var pass_impulse: Vector3 = Vector3.ZERO
+
+	var pass_speed: float = fallback_pass_force
+	if assist_data["assisted"]:
+		pass_speed = clamp(assist_data["dist"] * 0.95 + 4.5, fallback_pass_force, 24.0)
 
 	if mechanics and mechanics.has_method("calculate_pass_force"):
 		var res = mechanics.calculate_pass_force(pass_dir.x, pass_dir.z)
 		if typeof(res) == TYPE_VECTOR3:
-			pass_impulse = res
+			if assist_data["assisted"]:
+				var h_speed: float = max(1.0, Vector2(res.x, res.z).length())
+				var mult: float = pass_speed / h_speed
+				pass_impulse = Vector3(res.x * mult, 0.08, res.z * mult)
+			else:
+				pass_impulse = res
 		else:
-			pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.08, pass_dir.z * fallback_pass_force)
+			pass_impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
 	else:
-		pass_impulse = Vector3(pass_dir.x * fallback_pass_force, 0.08, pass_dir.z * fallback_pass_force)
+		pass_impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
 
 	ball_ref.apply_central_impulse(pass_impulse)
 	drain_stamina(4.0)
@@ -614,24 +745,37 @@ func _execute_short_pass() -> void:
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
-	print("[PPSSPP] Botón X (Cruz): Pase corto ejecutado -> ", pass_impulse)
+	print("[PPSSPP] Botón X (Cruz): Pase corto ejecutado -> ", pass_impulse, " (Asistido: %s)" % str(assist_data["assisted"]))
 
 # --- Botón O: Centro / Pase Bombeado ---
 func _execute_lob_pass() -> void:
 	if not _can_kick_ball():
 		return
 
-	var pass_dir = _get_action_direction()
+	var base_dir = _get_action_direction()
+	var assist_data = _get_assisted_pass_vector(base_dir, "lob")
+	var pass_dir: Vector3 = assist_data["dir"]
 	var lob_impulse: Vector3 = Vector3.ZERO
+
+	var pass_speed: float = fallback_lob_force
+	var lob_vy: float = 4.2
+	if assist_data["assisted"]:
+		pass_speed = clamp(assist_data["dist"] * 0.90 + 6.0, fallback_lob_force, 26.0)
+		lob_vy = clamp(3.2 + assist_data["dist"] * 0.12, 3.8, 6.2)
 
 	if mechanics and mechanics.has_method("calculate_lob_pass"):
 		var res = mechanics.calculate_lob_pass(pass_dir.x, pass_dir.z)
 		if typeof(res) == TYPE_VECTOR3:
-			lob_impulse = res
+			if assist_data["assisted"]:
+				var h_speed: float = max(1.0, Vector2(res.x, res.z).length())
+				var mult: float = pass_speed / h_speed
+				lob_impulse = Vector3(res.x * mult, lob_vy, res.z * mult)
+			else:
+				lob_impulse = res
 		else:
-			lob_impulse = Vector3(pass_dir.x * fallback_lob_force, 4.2, pass_dir.z * fallback_lob_force)
+			lob_impulse = Vector3(pass_dir.x * pass_speed, lob_vy, pass_dir.z * pass_speed)
 	else:
-		lob_impulse = Vector3(pass_dir.x * fallback_lob_force, 4.2, pass_dir.z * fallback_lob_force)
+		lob_impulse = Vector3(pass_dir.x * pass_speed, lob_vy, pass_dir.z * pass_speed)
 
 	ball_ref.apply_central_impulse(lob_impulse)
 	drain_stamina(6.0)
@@ -639,24 +783,35 @@ func _execute_lob_pass() -> void:
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
-	print("[PPSSPP] Botón O (Círculo): Pase bombeado / Centro ejecutado -> ", lob_impulse)
+	print("[PPSSPP] Botón O (Círculo): Pase bombeado / Centro ejecutado -> ", lob_impulse, " (Asistido: %s)" % str(assist_data["assisted"]))
 
 # --- Botón Δ: Pase en Profundidad / al Hueco ---
 func _execute_through_pass() -> void:
 	if not _can_kick_ball():
 		return
 
-	var pass_dir = _get_action_direction()
+	var base_dir = _get_action_direction()
+	var assist_data = _get_assisted_pass_vector(base_dir, "through")
+	var pass_dir: Vector3 = assist_data["dir"]
 	var through_impulse: Vector3 = Vector3.ZERO
+
+	var pass_speed: float = fallback_through_force
+	if assist_data["assisted"]:
+		pass_speed = clamp(assist_data["dist"] * 1.05 + 5.5, fallback_through_force, 28.0)
 
 	if mechanics and mechanics.has_method("calculate_through_pass"):
 		var res = mechanics.calculate_through_pass(pass_dir.x, pass_dir.z)
 		if typeof(res) == TYPE_VECTOR3:
-			through_impulse = res
+			if assist_data["assisted"]:
+				var h_speed: float = max(1.0, Vector2(res.x, res.z).length())
+				var mult: float = pass_speed / h_speed
+				through_impulse = Vector3(res.x * mult, 0.05, res.z * mult)
+			else:
+				through_impulse = res
 		else:
-			through_impulse = Vector3(pass_dir.x * fallback_through_force, 0.05, pass_dir.z * fallback_through_force)
+			through_impulse = Vector3(pass_dir.x * pass_speed, 0.05, pass_dir.z * pass_speed)
 	else:
-		through_impulse = Vector3(pass_dir.x * fallback_through_force, 0.05, pass_dir.z * fallback_through_force)
+		through_impulse = Vector3(pass_dir.x * pass_speed, 0.05, pass_dir.z * pass_speed)
 
 	ball_ref.apply_central_impulse(through_impulse)
 	drain_stamina(7.0)
@@ -664,7 +819,7 @@ func _execute_through_pass() -> void:
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
-	print("[PPSSPP] Botón Δ (Triángulo): Pase en profundidad ejecutado -> ", through_impulse)
+	print("[PPSSPP] Botón Δ (Triángulo): Pase en profundidad ejecutado -> ", through_impulse, " (Asistido: %s)" % str(assist_data["assisted"]))
 
 # --- Botón □: Disparo / Remate a Portería ---
 func _execute_kick() -> void:
