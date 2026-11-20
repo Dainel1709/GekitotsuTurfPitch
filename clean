@@ -1,0 +1,119 @@
+[33mcommit aa9017754f34646279fb5561ec2e5b82eb7b21f0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Dainel1709 <dainel1709@gmail.com>
+Date:   Thu Nov 19 21:56:28 2026 -0400
+
+    fix: ajustar camara aerea, sombras y lineas en FootballPitch.tscn
+
+[1mdiff --git a/scenes/FootballPitch.tscn b/scenes/FootballPitch.tscn[m
+[1mindex 8ac62c9..803694f 100644[m
+[1m--- a/scenes/FootballPitch.tscn[m
+[1m+++ b/scenes/FootballPitch.tscn[m
+[36m@@ -117,6 +117,7 @@[m [mmesh = SubResource( 5 )[m
+ material/0 = SubResource( 4 )[m
+ [m
+ [node name="CenterCircle" type="MeshInstance" parent="PitchLines"][m
+[32m+[m[32mvisible = false[m
+ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0 )[m
+ mesh = SubResource( 6 )[m
+ material/0 = SubResource( 7 )[m
+[1mdiff --git a/scripts/PitchCamera.gd b/scripts/PitchCamera.gd[m
+[1mindex ea3b736..ddb8f42 100644[m
+[1m--- a/scripts/PitchCamera.gd[m
+[1m+++ b/scripts/PitchCamera.gd[m
+[36m@@ -3,8 +3,8 @@[m [mextends Camera[m
+ # Dynamic orthographic camera that follows the ball while keeping the player (Ryu) in view.[m
+ # Attach to the OverheadCamera node in FootballPitch.tscn.[m
+ [m
+[31m-var min_size: float = 18.0[m
+[31m-var max_size: float = 38.0[m
+[32m+[m[32mvar min_size: float = 26.0[m
+[32m+[m[32mvar max_size: float = 44.0[m
+ var margin: float = 10.0[m
+ var look_ahead_dist: float = 6.0[m
+ var smooth_speed: float = 5.0[m
+[36m@@ -13,45 +13,45 @@[m [monready var player: Node = null[m
+ onready var ball: Node = null[m
+ [m
+ func _ready() -> void:[m
+[31m-    # Ensure orthogonal projection[m
+[31m-    projection = PROJECTION_ORTHOGONAL[m
+[31m-    rotation_degrees = Vector3(-90, 0, 0)[m
+[31m-    # Find player and ball nodes[m
+[31m-    var players = get_tree().get_nodes_in_group("player")[m
+[31m-    if players.size() > 0:[m
+[31m-        player = players[0][m
+[31m-    var balls = get_tree().get_nodes_in_group("ball")[m
+[31m-    if balls.size() > 0:[m
+[31m-        ball = balls[0][m
+[32m+[m	[32m# Ensure orthogonal projection[m
+[32m+[m	[32mprojection = PROJECTION_ORTHOGONAL[m
+[32m+[m	[32mrotation_degrees = Vector3(-90, 0, 0)[m
+[32m+[m	[32m# Find player and ball nodes[m
+[32m+[m	[32mvar players = get_tree().get_nodes_in_group("player")[m
+[32m+[m	[32mif players.size() > 0:[m
+[32m+[m		[32mplayer = players[0][m
+[32m+[m	[32mvar balls = get_tree().get_nodes_in_group("ball")[m
+[32m+[m	[32mif balls.size() > 0:[m
+[32m+[m		[32mball = balls[0][m
+ [m
+ func _process(delta: float) -> void:[m
+[31m-    if not player or not ball:[m
+[31m-        return[m
+[31m-    var player_pos: Vector3 = player.global_transform.origin[m
+[31m-    var ball_pos: Vector3 = ball.global_transform.origin[m
+[31m-[m
+[31m-    # Interpolated focus point weighted towards ball but anchored to player[m
+[31m-    var focus: Vector3 = player_pos.linear_interpolate(ball_pos, 0.65)[m
+[31m-[m
+[31m-    # Look‑ahead when ball is in the last third of the field (north or south)[m
+[31m-    var field_z_half: float = 12.0[m
+[31m-    if ball_pos.z > field_z_half * 0.66:[m
+[31m-        focus.z += look_ahead_dist[m
+[31m-    elif ball_pos.z < -field_z_half * 0.66:[m
+[31m-        focus.z -= look_ahead_dist[m
+[31m-[m
+[31m-    # Smooth translation towards focus (keep Y unchanged)[m
+[31m-    var target_translation: Vector3 = translation[m
+[31m-    target_translation.x = lerp(target_translation.x, focus.x, clamp(smooth_speed * delta, 0.0, 1.0))[m
+[31m-    target_translation.z = lerp(target_translation.z, focus.z, clamp(smooth_speed * delta, 0.0, 1.0))[m
+[31m-    # Clamp to field bounds (+/-19, +/-12) with a small margin[m
+[31m-    target_translation.x = clamp(target_translation.x, -19.0 + 1.0, 19.0 - 1.0)[m
+[31m-    target_translation.z = clamp(target_translation.z, -12.0 + 1.0, 12.0 - 1.0)[m
+[31m-    translation = target_translation[m
+[31m-[m
+[31m-    # Dynamic zoom based on distance between player and ball[m
+[31m-    var dx: float = abs(ball_pos.x - player_pos.x)[m
+[31m-    var dz: float = abs(ball_pos.z - player_pos.z)[m
+[31m-    var desired: float = min_size + (dx + dz + margin) * 0.5[m
+[31m-    desired = clamp(desired, min_size, max_size)[m
+[31m-    size = lerp(size, desired, clamp(smooth_speed * delta, 0.0, 1.0))[m
+[32m+[m	[32mif not player or not ball:[m
+[32m+[m		[32mreturn[m
+[32m+[m	[32mvar player_pos: Vector3 = player.global_transform.origin[m
+[32m+[m	[32mvar ball_pos: Vector3 = ball.global_transform.origin[m
+[32m+[m
+[32m+[m	[32m# Interpolated focus point weighted towards ball but anchored to player[m
+[32m+[m	[32mvar focus: Vector3 = player_pos.linear_interpolate(ball_pos, 0.65)[m
+[32m+[m
+[32m+[m	[32m# Look‑ahead when ball is in the last third of the field (north or south)[m
+[32m+[m	[32mvar field_z_half: float = 12.0[m
+[32m+[m	[32mif ball_pos.z > field_z_half * 0.66:[m
+[32m+[m		[32mfocus.z += look_ahead_dist[m
+[32m+[m	[32melif ball_pos.z < -field_z_half * 0.66:[m
+[32m+[m		[32mfocus.z -= look_ahead_dist[m
+[32m+[m
+[32m+[m	[32m# Smooth translation towards focus (keep Y unchanged)[m
+[32m+[m	[32mvar target_translation: Vector3 = translation[m
+[32m+[m	[32mtarget_translation.x = lerp(target_translation.x, focus.x, clamp(smooth_speed * delta, 0.0, 1.0))[m
+[32m+[m	[32mtarget_translation.z = lerp(target_translation.z, focus.z, clamp(smooth_speed * delta, 0.0, 1.0))[m
+[32m+[m	[32m# Clamp to field bounds (+/-19, +/-12) with a small margin[m
+[32m+[m	[32mtarget_translation.x = clamp(target_translation.x, -19.5, 19.5)[m
+[32m+[m	[32mtarget_translation.z = clamp(target_translation.z, -12.5 + 0.5, 12.5 - 0.5)[m
+[32m+[m	[32mtranslation = target_translation[m
+[32m+[m
+[32m+[m	[32m# Dynamic zoom based on distance between player and ball[m
+[32m+[m	[32mvar dx: float = abs(ball_pos.x - player_pos.x)[m
+[32m+[m	[32mvar dz: float = abs(ball_pos.z - player_pos.z)[m
+[32m+[m	[32mvar desired: float = min_size + (dx + dz + margin) * 0.5[m
+[32m+[m	[32mdesired = clamp(desired, min_size, max_size)[m
+[32m+[m	[32msize = lerp(size, desired, clamp(smooth_speed * delta, 0.0, 1.0))[m

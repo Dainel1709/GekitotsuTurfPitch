@@ -1,16 +1,20 @@
-[gd_scene load_steps=6 format=2]
+[gd_scene load_steps=8 format=2]
 
 [ext_resource path="res://scripts/FightArena.gd" type="Script" id=1]
 [ext_resource path="res://scripts/Fighter.gd" type="Script" id=2]
+[ext_resource path="res://assets/models/playerfutblue.glb" type="PackedScene" id=3]
 
 [sub_resource type="RectangleShape2D" id=1]
 extents = Vector2( 512, 30 )
 
+[sub_resource type="RectangleShape2D" id=3]
+extents = Vector2( 20, 300 )
+
 [sub_resource type="RectangleShape2D" id=2]
 extents = Vector2( 20, 50 )
 
-[sub_resource type="RectangleShape2D" id=3]
-extents = Vector2( 20, 300 )
+[sub_resource type="ViewportTexture" id=4]
+viewport_path = NodePath("Player/ModelViewport")
 
 [node name="FightArena" type="Node2D"]
 script = ExtResource( 1 )
@@ -113,7 +117,6 @@ color = Color( 0.203922, 0.501961, 0.94902, 1 )
 margin_left = -16.0
 margin_top = -20.0
 margin_right = 16.0
-margin_bottom = 0.0
 color = Color( 0.14902, 0.14902, 0.2, 1 )
 
 [node name="Fist" type="ColorRect" parent="Player/Visual"]
@@ -123,6 +126,25 @@ margin_top = -65.0
 margin_right = 36.0
 margin_bottom = -51.0
 color = Color( 0.94902, 0.85098, 0.4, 1 )
+
+[node name="ModelViewport" type="Viewport" parent="Player"]
+size = Vector2( 128, 160 )
+own_world = true
+transparent_bg = true
+
+[node name="ModelRoot" type="Spatial" parent="Player/ModelViewport"]
+
+[node name="playerfutblue" parent="Player/ModelViewport/ModelRoot" instance=ExtResource( 3 )]
+transform = Transform( 1, 0, 0, 0, -1, 8.74228e-08, 0, -8.74228e-08, -1, 0, 1.5032, 0 )
+
+[node name="Camera" type="Camera" parent="Player/ModelViewport/ModelRoot"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 2.62443 )
+current = true
+
+[node name="FighterSprite3D" type="Sprite" parent="Player"]
+position = Vector2( 1, -46 )
+scale = Vector2( 1.20313, 1.20625 )
+texture = SubResource( 4 )
 
 [node name="Rival" type="KinematicBody2D" parent="." groups=["fighters", "rival"]]
 position = Vector2( 764, 475 )
@@ -155,7 +177,6 @@ color = Color( 0.901961, 0.25098, 0.25098, 1 )
 margin_left = -16.0
 margin_top = -20.0
 margin_right = 16.0
-margin_bottom = 0.0
 color = Color( 0.121569, 0.121569, 0.14902, 1 )
 
 [node name="Fist" type="ColorRect" parent="Rival/Visual"]
@@ -225,9 +246,9 @@ text = "Furia: 0%"
 
 [node name="VSLabel" type="Label" parent="CanvasLayer/TopPanel/HBox"]
 margin_left = 378.0
-margin_top = 18.0
+margin_top = 36.0
 margin_right = 408.0
-margin_bottom = 32.0
+margin_bottom = 50.0
 rect_min_size = Vector2( 30, 0 )
 text = "VS"
 align = 1
@@ -236,7 +257,7 @@ valign = 1
 [node name="RivalBox" type="VBoxContainer" parent="CanvasLayer/TopPanel/HBox"]
 margin_left = 428.0
 margin_right = 786.0
-margin_bottom = 51.0
+margin_bottom = 86.0
 size_flags_horizontal = 3
 
 [node name="RivalName" type="Label" parent="CanvasLayer/TopPanel/HBox/RivalBox"]
@@ -300,3 +321,5 @@ margin_top = -40.0
 text = "Flechas: Moverse | Arriba: Saltar | A/Z: Combo | X/S: Fuerte | A+X: Furia Especial | Q: Guardia | W: Esquive"
 align = 1
 valign = 1
+
+[editable path="Player/ModelViewport/ModelRoot/playerfutblue"]

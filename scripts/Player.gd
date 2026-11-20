@@ -70,6 +70,22 @@ var velocity: Vector3 = Vector3.ZERO
 func _ready() -> void:
 	add_to_group("player")
 
+	# Asignar material visual exclusivo para el jugador principal (azul eléctrico brillante)
+	var player_mat = SpatialMaterial.new()
+	player_mat.albedo_color = Color(0.10, 0.60, 1.0)
+	player_mat.roughness = 0.3
+	player_mat.emission_enabled = true
+	player_mat.emission = Color(0.05, 0.25, 0.5)
+	player_mat.emission_energy = 0.35
+	var player_mesh = get_node_or_null("PlayerMesh")
+	if player_mesh and player_mesh is MeshInstance:
+		player_mesh.material_override = player_mat
+	else:
+		for child in get_children():
+			if child is MeshInstance and child.name != "IndicatorRing":
+				child.material_override = player_mat
+				break
+
 	# Conectar KickArea si existe en la escena
 	if has_node("KickArea"):
 		var kick_area = get_node("KickArea")
