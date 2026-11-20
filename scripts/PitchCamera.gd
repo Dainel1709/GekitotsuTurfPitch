@@ -4,16 +4,16 @@ extends Camera
 # and preserving the angled aerial perspective set on OverheadCamera.
 
 export var tilt_x_deg: float = -74.0
-export var base_height: float = 40.0
-export var max_height: float = 62.0
-export var z_offset_from_tilt: float = 19.0
+export var base_height: float = 38.0
+export var max_height: float = 58.0
+export var z_offset_from_tilt: float = 18.0
 export var margin: float = 10.0
 export var look_ahead_dist: float = 8.0
 export var smooth_speed: float = 5.0
 
 # Fallback values if used in orthogonal mode
-export var min_size: float = 42.0
-export var max_size: float = 76.0
+export var min_size: float = 40.0
+export var max_size: float = 72.0
 
 var player = null
 var ball = null
