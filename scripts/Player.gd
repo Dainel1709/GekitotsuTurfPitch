@@ -861,7 +861,7 @@ func _execute_special_shot() -> void:
 
 	# Orientar hacia la portería rival (RivalGoalArea en Z negativo)
 	var rival_goal = get_node_or_null("../RivalGoalArea")
-	var target_goal_pos = Vector3(0.0, 0.6, -23.45)
+	var target_goal_pos = Vector3(0.0, 0.6, -44.2)
 	if rival_goal:
 		target_goal_pos = rival_goal.global_transform.origin
 		target_goal_pos.y = 0.6
@@ -975,10 +975,24 @@ func _on_button_l_pressed() -> void:
 	# 3. Si el balón está lejos (> 2.2 m):
 	# Buscar si un compañero aliado tiene el balón o está a <= 4.5 m del balón suelto
 	var ally = _get_allied_teammate_near_ball(ball_pos, 4.5)
-	if ally != null and ally.has_method("receive_pass_call"):
-		ally.receive_pass_call(self)
-		print("[Carrera] Botón L (Q / L1): Compañero aliado pasa a Ryu y se desmarca.")
-		return
+	if ally != null:
+		if ally.has_method("receive_pass_call"):
+			ally.receive_pass_call(self)
+			print("[Carrera] Botón L (Q / L1): Compañero aliado pasa a Ryu y se desmarca.")
+			return
+		else:
+			var pass_target = player_pos + (facing_direction * 1.0)
+			var pass_vec = pass_target - ball_pos
+			pass_vec.y = 0.0
+			var pass_dist = pass_vec.length()
+			if pass_dist > 0.1:
+				var pass_dir = pass_vec.normalized()
+				var pass_speed = clamp(pass_dist * 0.85, 8.0, 18.0)
+				var impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
+				ball_ref.linear_velocity = impulse
+				ball_ref.apply_central_impulse(impulse)
+				print("[Carrera] Botón L (Q / L1): Compañero aliado realiza pase hacia Ryu.")
+				return
 
 	# Si hay otros compañeros en el grupo teammates con receive_pass_call a <= 4.5m o con balón
 	var teammates = get_tree().get_nodes_in_group("teammates")
