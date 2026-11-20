@@ -21,6 +21,10 @@ var separation_radius: float = 3.2
 export(bool) var is_frozen_for_test: bool = false
 var test_freeze_timer: float = 0.0
 
+# Temporizadores de pase a Ryu y desmarque asistido
+var pass_to_player_cooldown: float = 0.0
+var unmark_timer: float = 0.0
+
 var velocity: Vector3 = Vector3.ZERO
 var target_velocity: Vector3 = Vector3.ZERO
 var facing_direction: Vector3 = Vector3(0, 0, 1)
@@ -79,6 +83,8 @@ func _ready() -> void:
 			break
 
 func set_test_freeze(frozen: bool, duration: float = 0.0) -> void:
+	if role == "goalkeeper":
+		return
 	is_frozen_for_test = frozen
 	test_freeze_timer = max(0.0, duration)
 	if is_frozen_for_test or test_freeze_timer > 0.0:
@@ -100,6 +106,8 @@ func reset_position() -> void:
 	tackle_cooldown = 0.0
 	is_frozen_for_test = false
 	test_freeze_timer = 0.0
+	pass_to_player_cooldown = 0.0
+	unmark_timer = 0.0
 
 func lose_ball() -> void:
 	has_ball = false
@@ -117,8 +125,8 @@ func _resolve_ball() -> void:
 func _physics_process(delta: float) -> void:
 	_resolve_ball()
 
-	# Manejo de congelamiento para pruebas en cancha (tecla F)
-	if role == "opponent":
+	# Manejo de congelamiento para pruebas en cancha (tecla F: rivales y compañero)
+	if role == "opponent" or role == "teammate":
 		if test_freeze_timer > 0.0:
 			test_freeze_timer = max(0.0, test_freeze_timer - delta)
 			if test_freeze_timer <= 0.0:
@@ -131,6 +139,12 @@ func _physics_process(delta: float) -> void:
 			has_ball = false
 			is_dribbling = false
 			return
+
+	# Temporizadores de desmarque tras pase al jugador
+	if pass_to_player_cooldown > 0.0:
+		pass_to_player_cooldown = max(0.0, pass_to_player_cooldown - delta)
+	if unmark_timer > 0.0:
+		unmark_timer = max(0.0, unmark_timer - delta)
 
 	# Temporizadores generales
 	if possession_cooldown > 0.0:
@@ -364,6 +378,36 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 	var ball_pos: Vector3 = ball_ref.global_transform.origin
 	var speed_mult: float = 0.75 if is_exhausted else 1.0
 
+	# 1. Estado prioritario de desmarque y no-intercepción tras dar el pase a Ryu
+	if unmark_timer > 0.0:
+		has_ball = false
+		is_dribbling = false
+		var ryu = _find_ryu()
+		if ryu:
+			var ryu_pos = ryu.global_transform.origin
+			var flank_x: float = 7.0 if ryu_pos.x <= 0.0 else -7.0
+			var unmark_z: float = clamp(ryu_pos.z - 4.5, -9.5, 7.0)
+			var target_pos = Vector3(flank_x, 0.8, unmark_z)
+
+			# Mantener al menos 4.5 m de separación respecto a Ryu
+			var diff_ryu = target_pos - ryu_pos
+			diff_ryu.y = 0.0
+			if diff_ryu.length() < 4.5:
+				var away_dir = diff_ryu.normalized() if diff_ryu.length() > 0.01 else Vector3(1, 0, 0)
+				target_pos = ryu_pos + away_dir * 4.8
+
+			var to_target = target_pos - my_pos
+			to_target.y = 0.0
+			var dist = to_target.length()
+
+			if dist > 0.4:
+				target_facing = to_target.normalized()
+				target_velocity = target_facing * move_speed * speed_mult
+			else:
+				target_velocity = Vector3.ZERO
+				target_facing = Vector3(0, 0, -1)
+		return
+
 	# Detectar portador actual de forma segura
 	var carrier = _find_allied_ball_carrier()
 	var carrier_is_player: bool = false
@@ -436,7 +480,7 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 				target_facing = to_ball.normalized()
 				target_velocity = target_facing * sprint_speed * speed_mult
 
-				if dist_ball <= 1.4 and ball_ref.linear_velocity.length() < 18.0 and possession_cooldown <= 0.0:
+				if dist_ball <= 1.4 and ball_ref.linear_velocity.length() < 18.0 and possession_cooldown <= 0.0 and pass_to_player_cooldown <= 0.0:
 					has_ball = true
 					is_dribbling = true
 					print("[AI Teammate] ¡Compañero aliado controla el balón!")
@@ -463,22 +507,31 @@ func receive_pass_call(target_player: Node) -> void:
 	var my_pos = global_transform.origin
 	var dist_to_ball = my_pos.distance_to(ball_pos)
 
-	if has_ball or dist_to_ball <= 2.8:
-		var target_pos = target_player.global_transform.origin if target_player else Vector3(0, 0, 3.5)
+	if has_ball or is_dribbling or dist_to_ball <= 4.5:
+		var player_lead = Vector3.ZERO
+		if target_player:
+			if "velocity" in target_player and target_player.velocity.length_squared() > 1.0:
+				player_lead = target_player.velocity.normalized() * clamp(target_player.velocity.length() * 0.25, 0.8, 2.2)
+			elif "facing_direction" in target_player and target_player.facing_direction.length_squared() > 0.01:
+				player_lead = target_player.facing_direction.normalized() * 1.0
+
+		var target_pos = (target_player.global_transform.origin + player_lead) if target_player else Vector3(0, 0, 3.5)
 		var to_target = target_pos - ball_pos
 		to_target.y = 0.0
 		var dist = to_target.length()
 		var pass_dir = to_target.normalized() if dist > 0.01 else -facing_direction
-		var pass_speed = clamp(dist * 0.95 + 6.0, 10.0, 20.0)
+		var pass_speed = clamp(dist * 0.95 + 6.0, 10.0, 22.0)
 		var pass_impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
 
 		ball_ref.linear_velocity = pass_impulse
 		ball_ref.apply_central_impulse(pass_impulse)
 		has_ball = false
 		is_dribbling = false
-		possession_cooldown = 0.7
-		kick_cooldown = 0.4
-		print("[AI Teammate] ¡Pase de compañero hacia Ryu ejecutado tras llamada con L1 / Q! Vel: %.1f" % pass_speed)
+		pass_to_player_cooldown = 1.6
+		unmark_timer = 2.2
+		possession_cooldown = 2.2
+		kick_cooldown = 0.5
+		print("[AI Teammate] ¡Pase de compañero hacia Ryu ejecutado tras llamada con L (Q / L1)! Vel: %.1f | Desmarque activado" % pass_speed)
 
 # -------------------------------------------------------------------------
 # 5. MÉTODOS AUXILIARES

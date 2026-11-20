@@ -419,7 +419,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 margin_top = -42.0
-text = "PPSSPP: Cruz: Pase corto | O: Centro | Δ: Pase al hueco | □: Disparo | R: Sprint | L: Manual | SELECT: Táctica | F: Frenar rivales (Test)"
+text = "PPSSPP: Cruz: Pase corto | O: Centro | Δ: Pase al hueco | □: Disparo | R: Sprint | L: Pedir balón/Control | SELECT: Táctica | F: Frenar rivales y compañero (Test)"
 align = 1
 valign = 1
 

@@ -604,35 +604,47 @@ func _execute_tackle() -> void:
 		tackle_cooldown = 0.45
 		print("[Player] Entrada fallida: sin rival ni balón en rango de 1.8 m.")
 
-# --- Herramienta de Pruebas en Cancha: Congelar / Frenar Rivales ---
+# --- Herramienta de Pruebas en Cancha: Congelar / Frenar Rivales y Compañero ---
 func _toggle_opponents_freeze(pulse: bool = false) -> void:
 	var tree = get_tree()
 	if not tree:
 		return
 	var opponents = tree.get_nodes_in_group("opponents")
+	var teammates = tree.get_nodes_in_group("teammates")
+	var target_nodes = []
+	for opp in opponents:
+		target_nodes.append(opp)
+	for team in teammates:
+		if team != self:
+			target_nodes.append(team)
+
 	if pulse:
 		opponents_frozen = true
-		for opp in opponents:
-			if opp.has_method("set_test_freeze"):
-				opp.set_test_freeze(true, 1.5)
-			elif "is_frozen_for_test" in opp:
-				opp.is_frozen_for_test = true
-				if "test_freeze_timer" in opp:
-					opp.test_freeze_timer = 1.5
-		print("[Test F] Rivales FRENADOS por pulso (1.5s)")
+		for actor in target_nodes:
+			if "role" in actor and actor.role == "goalkeeper":
+				continue
+			if actor.has_method("set_test_freeze"):
+				actor.set_test_freeze(true, 1.5)
+			elif "is_frozen_for_test" in actor:
+				actor.is_frozen_for_test = true
+				if "test_freeze_timer" in actor:
+					actor.test_freeze_timer = 1.5
+		print("[Test F] Rivales y Compañero FRENADOS por pulso (1.5s)")
 	else:
 		opponents_frozen = not opponents_frozen
-		for opp in opponents:
-			if opp.has_method("set_test_freeze"):
-				opp.set_test_freeze(opponents_frozen, 0.0)
-			elif "is_frozen_for_test" in opp:
-				opp.is_frozen_for_test = opponents_frozen
-				if "test_freeze_timer" in opp:
-					opp.test_freeze_timer = 0.0
+		for actor in target_nodes:
+			if "role" in actor and actor.role == "goalkeeper":
+				continue
+			if actor.has_method("set_test_freeze"):
+				actor.set_test_freeze(opponents_frozen, 0.0)
+			elif "is_frozen_for_test" in actor:
+				actor.is_frozen_for_test = opponents_frozen
+				if "test_freeze_timer" in actor:
+					actor.test_freeze_timer = 0.0
 		if opponents_frozen:
-			print("[Test F] Rivales FRENADOS para pruebas")
+			print("[Test F] Rivales y Compañero FRENADOS para pruebas")
 		else:
-			print("[Test F] Rivales ACTIVOS")
+			print("[Test F] Rivales y Compañero ACTIVOS")
 
 # --- Asistencia de Pase Hacia Compañeros Aliados ---
 func _find_assisted_teammate(base_dir: Vector3) -> Dictionary:
@@ -906,7 +918,7 @@ func _is_rival_near_ball(ball_pos: Vector3, max_dist: float = 2.2) -> bool:
 					return true
 	return false
 
-func _get_allied_teammate_near_ball(ball_pos: Vector3, max_dist: float = 2.2) -> Spatial:
+func _get_allied_teammate_near_ball(ball_pos: Vector3, max_dist: float = 4.5) -> Spatial:
 	var tree = get_tree()
 	if not tree:
 		return null
@@ -915,6 +927,12 @@ func _get_allied_teammate_near_ball(ball_pos: Vector3, max_dist: float = 2.2) ->
 		var nodes = tree.get_nodes_in_group(grp)
 		for node in nodes:
 			if node != self and node is Spatial and is_instance_valid(node) and not node.is_queued_for_deletion():
+				if "role" in node and node.role == "goalkeeper":
+					continue
+				if "has_ball" in node and node.has_ball:
+					return node as Spatial
+				if "is_dribbling" in node and node.is_dribbling:
+					return node as Spatial
 				var n_pos = node.global_transform.origin
 				n_pos.y = ball_pos.y
 				if ball_pos.distance_to(n_pos) <= max_dist:
@@ -955,30 +973,29 @@ func _on_button_l_pressed() -> void:
 		return
 
 	# 3. Si el balón está lejos (> 2.2 m):
-	# Solo ejecuta un pase dirigido hacia el jugador si existe un compañero aliado a menos de 2.2 m del balón
-	var ally = _get_allied_teammate_near_ball(ball_pos, 2.2)
-	if ally != null:
-		var pass_target = player_pos + (facing_direction * 1.0)
-		var pass_vec = pass_target - ball_pos
-		pass_vec.y = 0.0
-		var pass_dist = pass_vec.length()
-		if pass_dist > 0.1:
-			var pass_dir = pass_vec.normalized()
-			var pass_speed = clamp(pass_dist * 0.85, 8.0, 18.0)
-			var impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
-			ball_ref.linear_velocity = impulse
-			ball_ref.apply_central_impulse(impulse)
-			print("[Carrera] Botón L (Q / L1): Compañero aliado realiza pase hacia Ryu.")
-	# Notificar a los compañeros para que pasen el balón al jugador
+	# Buscar si un compañero aliado tiene el balón o está a <= 4.5 m del balón suelto
+	var ally = _get_allied_teammate_near_ball(ball_pos, 4.5)
+	if ally != null and ally.has_method("receive_pass_call"):
+		ally.receive_pass_call(self)
+		print("[Carrera] Botón L (Q / L1): Compañero aliado pasa a Ryu y se desmarca.")
+		return
+
+	# Si hay otros compañeros en el grupo teammates con receive_pass_call a <= 4.5m o con balón
 	var teammates = get_tree().get_nodes_in_group("teammates")
 	for t in teammates:
 		if t != self and t.has_method("receive_pass_call"):
-			t.receive_pass_call(self)
-		return
+			var t_pos = t.global_transform.origin
+			t_pos.y = ball_pos.y
+			var t_dist = t_pos.distance_to(ball_pos)
+			var has_it = ("has_ball" in t and t.has_ball) or ("is_dribbling" in t and t.is_dribbling)
+			if has_it or t_dist <= 4.5:
+				t.receive_pass_call(self)
+				print("[Carrera] Botón L (Q / L1): Teammate llamado a pasar y desmarcarse.")
+				return
 
 	# 4. Balón suelto en la cancha y no hay nadie cerca:
 	# Se elimina por completo la atracción magnética desde lejos. No hacer nada.
-	print("[Carrera] Botón L (Q / L1): Balón suelto sin compañeros cerca; petición ignorada.")
+	print("[Carrera] Botón L (Q / L1): Balón suelto sin compañeros cerca (< 4.5m); petición ignorada.")
 		
 func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
 	if mechanics:
