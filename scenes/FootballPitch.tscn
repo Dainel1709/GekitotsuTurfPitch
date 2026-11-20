@@ -117,6 +117,7 @@ mesh = SubResource( 5 )
 material/0 = SubResource( 4 )
 
 [node name="CenterCircle" type="MeshInstance" parent="PitchLines"]
+visible = false
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0 )
 mesh = SubResource( 6 )
 material/0 = SubResource( 7 )
