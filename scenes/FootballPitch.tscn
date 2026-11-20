@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=2]
+[gd_scene load_steps=38 format=2]
 
 [ext_resource path="res://scripts/Player.gd" type="Script" id=1]
 [ext_resource path="res://scenes/FootballBall.tscn" type="PackedScene" id=2]
@@ -6,6 +6,13 @@
 [ext_resource path="res://scripts/PitchHUD.gd" type="Script" id=4]
 [ext_resource path="res://scripts/FootballAI.gd" type="Script" id=5]
 [ext_resource path="res://scripts/PitchCamera.gd" type="Script" id=6]
+
+[sub_resource type="PlaneMesh" id=25]
+size = Vector2( 120, 160 )
+
+[sub_resource type="SpatialMaterial" id=26]
+albedo_color = Color( 0.35, 0.35, 0.33, 1 )
+roughness = 0.95
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 40, 90 )
@@ -24,14 +31,17 @@ size = Vector2( 40, 0.15 )
 albedo_color = Color( 0.9, 0.9, 0.9, 0.8 )
 roughness = 0.6
 
-[sub_resource type="CylinderMesh" id=6]
-top_radius = 4.0
-bottom_radius = 4.0
-height = 0.01
+[sub_resource type="SpatialMaterial" id=31]
+flags_unshaded = true
+albedo_color = Color( 0.96, 0.96, 0.96, 1 )
 
-[sub_resource type="SpatialMaterial" id=7]
-flags_transparent = true
-albedo_color = Color( 0.9, 0.9, 0.9, 0.3 )
+[sub_resource type="PlaneMesh" id=32]
+size = Vector2( 1.28, 0.2 )
+
+[sub_resource type="CylinderMesh" id=33]
+top_radius = 0.28
+bottom_radius = 0.28
+height = 0.002
 
 [sub_resource type="PlaneMesh" id=18]
 size = Vector2( 9.5, 0.12 )
@@ -55,6 +65,20 @@ roughness = 0.2
 
 [sub_resource type="CubeMesh" id=13]
 size = Vector3( 9.16, 0.16, 0.16 )
+
+[sub_resource type="CubeMesh" id=27]
+size = Vector3( 120, 3.5, 1.2 )
+
+[sub_resource type="SpatialMaterial" id=28]
+albedo_color = Color( 0.55, 0.55, 0.52, 1 )
+roughness = 0.75
+
+[sub_resource type="PlaneMesh" id=29]
+size = Vector2( 120, 12 )
+
+[sub_resource type="SpatialMaterial" id=30]
+albedo_color = Color( 0.42, 0.42, 0.4, 1 )
+roughness = 0.85
 
 [sub_resource type="CapsuleMesh" id=14]
 radius = 0.4
@@ -107,31 +131,10 @@ roughness = 0.4
 albedo_color = Color( 0, 0.8, 0.85, 1 )
 roughness = 0.4
 
-[sub_resource type="PlaneMesh" id=25]
-size = Vector2( 120, 160 )
-
-[sub_resource type="SpatialMaterial" id=26]
-albedo_color = Color( 0.35, 0.35, 0.33, 1 )
-roughness = 0.95
-
-[sub_resource type="CubeMesh" id=27]
-size = Vector3( 120, 3.5, 1.2 )
-
-[sub_resource type="SpatialMaterial" id=28]
-albedo_color = Color( 0.55, 0.55, 0.52, 1 )
-roughness = 0.75
-
-[sub_resource type="PlaneMesh" id=29]
-size = Vector2( 120, 12 )
-
-[sub_resource type="SpatialMaterial" id=30]
-albedo_color = Color( 0.42, 0.42, 0.40, 1 )
-roughness = 0.85
-
 [node name="FootballPitch" type="Spatial"]
 
 [node name="OverheadCamera" type="Camera" parent="."]
-transform = Transform( 1, 0, 0, 0, 0.422618, 0.906308, 0, -0.906308, 0.422618, 0, 38, 18 )
+transform = Transform( 1, 0, 0, 0, 0.422618, 0.906308, 0, -0.906308, 0.422618, 0, 40, 19 )
 current = true
 fov = 60.5
 size = 42.0
@@ -161,15 +164,138 @@ shape = SubResource( 3 )
 [node name="PitchLines" type="Spatial" parent="."]
 
 [node name="CenterLine" type="MeshInstance" parent="PitchLines"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.016, 0 )
 mesh = SubResource( 5 )
 material/0 = SubResource( 4 )
 
-[node name="CenterCircle" type="MeshInstance" parent="PitchLines"]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0 )
-visible = false
-mesh = SubResource( 6 )
-material/0 = SubResource( 7 )
+[node name="CenterCircle" type="Spatial" parent="PitchLines"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.016, 0 )
+visible = true
+
+[node name="Seg0" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.75 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg1" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, 0.965926, 1.229, 0, 4.588 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg2" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 2.375, 0, 4.114 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg3" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 3.359, 0, 3.359 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg4" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, 0.5, 4.114, 0, 2.375 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg5" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, 0.258819, 4.588, 0, 1.229 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg6" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0, 0, -1, 0, 1, 0, 1, 0, 0, 4.75, 0, 0 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg7" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.258819, 0, -0.965926, 0, 1, 0, 0.965926, 0, -0.258819, 4.588, 0, -1.229 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg8" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, 4.114, 0, -2.375 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg9" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, -0.707107, 3.359, 0, -3.359 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg10" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, -0.866025, 2.375, 0, -4.114 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg11" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.965926, 0, -0.258819, 0, 1, 0, 0.258819, 0, -0.965926, 1.229, 0, -4.588 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg12" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -4.75 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg13" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, -0.965926, -1.229, 0, -4.588 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg14" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, -0.866025, -2.375, 0, -4.114 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg15" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, -0.707107, -3.359, 0, -3.359 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg16" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.5, 0, 0.866025, 0, 1, 0, -0.866025, 0, -0.5, -4.114, 0, -2.375 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg17" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( -0.258819, 0, 0.965926, 0, 1, 0, -0.965926, 0, -0.258819, -4.588, 0, -1.229 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg18" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0, 0, 1, 0, 1, 0, -1, 0, 0, -4.75, 0, 0 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg19" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.258819, 0, 0.965926, 0, 1, 0, -0.965926, 0, 0.258819, -4.588, 0, 1.229 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg20" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.5, 0, 0.866025, 0, 1, 0, -0.866025, 0, 0.5, -4.114, 0, 2.375 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg21" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, -3.359, 0, 3.359 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg22" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -2.375, 0, 4.114 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="Seg23" type="MeshInstance" parent="PitchLines/CenterCircle"]
+transform = Transform( 0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, -1.229, 0, 4.588 )
+mesh = SubResource( 32 )
+material/0 = SubResource( 31 )
+
+[node name="CenterSpot" type="MeshInstance" parent="PitchLines"]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.018, 0 )
+mesh = SubResource( 33 )
+material/0 = SubResource( 31 )
 
 [node name="NorthGoalLine" type="MeshInstance" parent="PitchLines"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -44.2 )
@@ -208,7 +334,7 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 20.25, 1.5, 0 )
 shape = SubResource( 9 )
 
 [node name="RivalGoalArea" type="Area" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -44.0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -44 )
 collision_layer = 0
 collision_mask = 2
 script = ExtResource( 3 )
@@ -218,7 +344,7 @@ goal_name = "Portería Rival (Norte)"
 shape = SubResource( 10 )
 
 [node name="PlayerGoalArea" type="Area" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 44.0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 44 )
 collision_layer = 0
 collision_mask = 2
 script = ExtResource( 3 )
