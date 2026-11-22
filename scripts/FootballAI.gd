@@ -11,9 +11,11 @@ export(float) var sprint_speed: float = 10.4
 export(float) var dribble_speed: float = 7.0
 export(float) var kick_reach: float = 1.6
 # Estamina y IA
-export(float) var stamina: float = 100.0
+export(bool) var enable_stamina_fatigue: bool = true
+export(float) var stamina: float = 100.0 setget set_stamina, get_stamina
 export(float) var max_stamina: float = 100.0
 var is_exhausted: bool = false
+var stun_timer: float = 0.0
 var ai_decision_timer: float = 0.0
 var separation_radius: float = 3.2
 
@@ -93,6 +95,31 @@ func set_test_freeze(frozen: bool, duration: float = 0.0) -> void:
 		has_ball = false
 		is_dribbling = false
 
+func drain_stamina(amount: float) -> void:
+	if not enable_stamina_fatigue:
+		return
+	stamina = max(0.0, stamina - amount)
+	if stamina <= 0.0:
+		stamina = 0.0
+		is_exhausted = true
+
+func set_stamina(val: float) -> void:
+	stamina = clamp(val, 0.0, max_stamina)
+	if enable_stamina_fatigue and stamina <= 0.0:
+		is_exhausted = true
+	elif is_exhausted and stamina >= 35.0:
+		is_exhausted = false
+
+func get_stamina() -> float:
+	return stamina
+
+func set_stun(duration: float = 7.0) -> void:
+	stun_timer = max(0.0, duration)
+	velocity = Vector3.ZERO
+	target_velocity = Vector3.ZERO
+	has_ball = false
+	is_dribbling = false
+
 func reset_position() -> void:
 	global_transform.origin = initial_position
 	facing_direction = initial_facing
@@ -108,6 +135,9 @@ func reset_position() -> void:
 	test_freeze_timer = 0.0
 	pass_to_player_cooldown = 0.0
 	unmark_timer = 0.0
+	stun_timer = 0.0
+	is_exhausted = false
+	stamina = max_stamina
 
 func lose_ball() -> void:
 	has_ball = false
@@ -124,6 +154,15 @@ func _resolve_ball() -> void:
 
 func _physics_process(delta: float) -> void:
 	_resolve_ball()
+
+	# Estado de aturdimiento (por resultado de duelo o impacto)
+	if stun_timer > 0.0:
+		stun_timer = max(0.0, stun_timer - delta)
+		velocity = Vector3.ZERO
+		target_velocity = Vector3.ZERO
+		has_ball = false
+		is_dribbling = false
+		return
 
 	# Manejo de congelamiento para pruebas en cancha (tecla F: rivales y compañero)
 	if role == "opponent" or role == "teammate":
@@ -160,19 +199,23 @@ func _physics_process(delta: float) -> void:
 	if decision_ready:
 		ai_decision_timer = 0.18
 
-	# Estamina y agotamiento (drena al esprintar y recupera al trotar)
-	var is_sprinting_now: bool = velocity.length() > move_speed + 0.5
-	if not is_exhausted:
-		if is_sprinting_now:
-			stamina = max(0.0, stamina - 18.0 * delta)
+	# Estamina y agotamiento compartidos (drena al esprintar y recupera al caminar/trotar o detenerse)
+	if enable_stamina_fatigue:
+		var is_sprinting_now: bool = velocity.length() > move_speed + 0.5
+		if not is_exhausted:
+			if is_sprinting_now:
+				stamina = max(0.0, stamina - 20.0 * delta)
+			else:
+				stamina = min(max_stamina, stamina + 12.0 * delta)
+			if stamina <= 0.0:
+				stamina = 0.0
+				is_exhausted = true
 		else:
 			stamina = min(max_stamina, stamina + 12.0 * delta)
-		if stamina <= 10.0:
-			is_exhausted = true
+			if stamina >= 35.0:
+				is_exhausted = false
 	else:
-		stamina = min(max_stamina, stamina + 12.0 * delta)
-		if stamina >= 35.0:
-			is_exhausted = false
+		is_exhausted = false
 
 	# Selección de comportamiento según rol
 	match role:
@@ -288,7 +331,7 @@ func _process_opponent(_delta: float, decision_ready: bool = true) -> void:
 
 	var my_pos: Vector3 = global_transform.origin
 	var ball_pos: Vector3 = ball_ref.global_transform.origin
-	var speed_mult: float = 0.75 if is_exhausted else 1.0
+	var speed_mult: float = 0.8 if (enable_stamina_fatigue and is_exhausted) else 1.0
 
 	# Detectar portador actual de forma segura
 	var carrier = _find_allied_ball_carrier()
@@ -343,7 +386,8 @@ func _process_opponent(_delta: float, decision_ready: bool = true) -> void:
 
 		if dist > 0.1:
 			target_facing = to_dest.normalized()
-			target_velocity = target_facing * sprint_speed * speed_mult
+			var chase_speed: float = move_speed if (enable_stamina_fatigue and is_exhausted) else sprint_speed
+			target_velocity = target_facing * chase_speed * speed_mult
 		else:
 			target_velocity = Vector3.ZERO
 
@@ -376,7 +420,7 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 
 	var my_pos: Vector3 = global_transform.origin
 	var ball_pos: Vector3 = ball_ref.global_transform.origin
-	var speed_mult: float = 0.75 if is_exhausted else 1.0
+	var speed_mult: float = 0.8 if (enable_stamina_fatigue and is_exhausted) else 1.0
 
 	# 1. Estado prioritario de desmarque y no-intercepción tras dar el pase a Ryu
 	if unmark_timer > 0.0:
@@ -478,7 +522,8 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 
 			if dist_ball <= 12.0:
 				target_facing = to_ball.normalized()
-				target_velocity = target_facing * sprint_speed * speed_mult
+				var chase_spd: float = move_speed if (enable_stamina_fatigue and is_exhausted) else sprint_speed
+				target_velocity = target_facing * chase_spd * speed_mult
 
 				if dist_ball <= 1.4 and ball_ref.linear_velocity.length() < 18.0 and possession_cooldown <= 0.0 and pass_to_player_cooldown <= 0.0:
 					has_ball = true

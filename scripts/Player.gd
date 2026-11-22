@@ -65,7 +65,15 @@ var prev_key_f: bool = false
 var opponents_frozen: bool = false
 
 # Variables de respaldo local (Fallback si la librería nativa no está cargada)
+export(bool) var enable_stamina_fatigue: bool = true
+var is_exhausted: bool = false
+var stun_timer: float = 0.0
+var is_in_brawl: bool = false
+var prev_both_triggers: bool = false
+
 var fallback_base_speed: float = 10.0
+var stamina: float = 100.0 setget set_stamina, get_stamina
+var max_stamina: float = 100.0 setget set_max_stamina, get_max_stamina
 var fallback_stamina: float = 100.0
 var fallback_max_stamina: float = 100.0
 
@@ -157,7 +165,9 @@ func apply_rpg_stats(p_combat: int, p_discipline: int) -> void:
 	])
 
 func _physics_process(delta: float) -> void:
-	if not can_move:
+	if not can_move or stun_timer > 0.0:
+		if stun_timer > 0.0:
+			stun_timer = max(0.0, stun_timer - delta)
 		velocity = Vector3.ZERO
 		return
 
@@ -212,8 +222,22 @@ func _physics_process(delta: float) -> void:
 
 	# Botón R: Correr (Sprint) / Esprintar -> W | R1 (PS) / RB (Xbox)
 	var cur_btn_r: bool = Input.is_action_pressed("psp_r") or Input.is_key_pressed(KEY_W) or Input.is_joy_button_pressed(0, JOY_BUTTON_5)
-	var is_sprinting: bool = cur_btn_r
-	var r_just_pressed: bool = cur_btn_r and not prev_btn_r
+	# Botón L: Pedir el balón (sin posesión) / Freno y control orientado (con posesión) -> Q | L1 (PS)
+	var cur_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
+
+	# Detección de flanco de ambos gatillos a la vez (Q + W / L1 + R1) para iniciar Duelo en Cancha
+	var both_triggers: bool = cur_btn_l and cur_btn_r
+	var both_triggers_just_pressed: bool = both_triggers and not prev_both_triggers
+	prev_both_triggers = both_triggers
+
+	if both_triggers:
+		# Cancelar timers de autopase y petición L cuando se presionan ambos gatillos a la vez
+		r_tap_timer = 0.0
+		if both_triggers_just_pressed and fury >= 100.0:
+			_trigger_pitch_brawl()
+
+	var is_sprinting: bool = cur_btn_r and not both_triggers
+	var r_just_pressed: bool = cur_btn_r and not prev_btn_r and not both_triggers
 	prev_btn_r = cur_btn_r
 
 	# Detección de doble toque en R (ventana < 0.28 s) para autopase largo (knock-on)
@@ -224,11 +248,10 @@ func _physics_process(delta: float) -> void:
 		else:
 			r_tap_timer = 0.28
 
-	# Botón L: Pedir el balón (sin posesión) / Freno y control orientado (con posesión) -> Q | L1 (PS)
-	var cur_btn_l = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
-	if cur_btn_l and not prev_btn_l:
-		_on_button_l_pressed()
+	var l_just_pressed = cur_btn_l and not prev_btn_l and not both_triggers
 	prev_btn_l = cur_btn_l
+	if l_just_pressed:
+		_on_button_l_pressed()
 
 	# Herramienta de prueba en cancha: Tecla F para frenar / pausar rivales
 	var cur_key_f: bool = Input.is_key_pressed(KEY_F)
@@ -242,24 +265,43 @@ func _physics_process(delta: float) -> void:
 	# 4. Procesamiento de acciones PPSSPP (Cruz, Círculo, Triángulo, Cuadrado)
 	_handle_ppsspp_actions(delta)
 
-	# 5. Cálculo de velocidad y estamina con backend C++
+	# 5. Cálculo de velocidad y estamina unificada
 	var current_speed: float = 0.0
 
-	if mechanics:
-		mechanics.set_moving(is_moving)
-		mechanics.set_sprinting(is_sprinting)
-		mechanics.update_stamina(delta)
-		current_speed = mechanics.get_current_speed()
-	else:
-		if is_moving:
-			var drain: float = 35.0 if is_sprinting else 20.0
-			fallback_stamina = max(0.0, fallback_stamina - drain * delta)
+	if enable_stamina_fatigue:
+		# Compartir mismas reglas de estamina que los NPCs
+		if not is_exhausted:
+			if is_sprinting and is_moving:
+				var drain: float = 20.0 * sprint_drain_mult
+				stamina = max(0.0, stamina - drain * delta)
+			else:
+				var rec: float = 12.0 * (1.0 + float(discipline_stat) * 0.008)
+				stamina = min(max_stamina, stamina + rec * delta)
+			if stamina <= 0.0:
+				stamina = 0.0
+				is_exhausted = true
 		else:
-			fallback_stamina = min(fallback_max_stamina, fallback_stamina + 15.0 * delta)
-		
-		var fatigue: float = 0.4 if fallback_stamina <= 0.0 else 1.0
-		var sprint_mult: float = 1.6 if (is_sprinting and fallback_stamina > 0.0) else 1.0
-		current_speed = fallback_base_speed * sprint_mult * fatigue
+			var rec: float = 12.0 * (1.0 + float(discipline_stat) * 0.008)
+			stamina = min(max_stamina, stamina + rec * delta)
+			if stamina >= 35.0:
+				is_exhausted = false
+
+		fallback_stamina = stamina
+		if mechanics and mechanics.has_method("set_stamina"):
+			mechanics.set_stamina(stamina)
+
+		var fatigue_mult: float = 0.8 if is_exhausted else 1.0
+		var sprint_mult: float = 1.6 if (is_sprinting and not is_exhausted) else 1.0
+		current_speed = fallback_base_speed * sprint_mult * fatigue_mult
+	else:
+		# Si enable_stamina_fatigue == false, ninguno sufre penalización de velocidad por cansancio
+		is_exhausted = false
+		stamina = max_stamina
+		fallback_stamina = max_stamina
+		if mechanics and mechanics.has_method("set_stamina"):
+			mechanics.set_stamina(max_stamina)
+		var sprint_mult: float = 1.6 if is_sprinting else 1.0
+		current_speed = fallback_base_speed * sprint_mult
 
 	# Impulso temporal de velocidad por autopase largo (knock-on boost = 0.45 s con 1.22x)
 	if knock_on_boost_timer > 0.0:
@@ -1031,14 +1073,18 @@ func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
 	return Vector3(kick_dir.x * final_force, vy, kick_dir.z * final_force)
 
 func drain_stamina(amount: float) -> void:
+	if not enable_stamina_fatigue:
+		return
+	stamina = max(0.0, stamina - amount)
+	fallback_stamina = stamina
 	if mechanics:
 		if mechanics.has_method("drain_stamina"):
 			mechanics.drain_stamina(amount)
-		else:
-			var cur = mechanics.get_stamina()
-			mechanics.set_stamina(max(0.0, cur - amount))
-	else:
-		fallback_stamina = max(0.0, fallback_stamina - amount)
+		elif mechanics.has_method("set_stamina"):
+			mechanics.set_stamina(stamina)
+	if stamina <= 0.0:
+		stamina = 0.0
+		is_exhausted = true
 
 func _on_kick_area_body_entered(body: Node) -> void:
 	if body.is_in_group("ball"):
@@ -1064,20 +1110,34 @@ func get_shot_charge() -> float:
 func is_charging_shot() -> bool:
 	return is_charging
 
+func set_stamina(val: float) -> void:
+	stamina = clamp(val, 0.0, max_stamina)
+	fallback_stamina = stamina
+	if enable_stamina_fatigue and stamina <= 0.0:
+		is_exhausted = true
+	elif is_exhausted and stamina >= 35.0:
+		is_exhausted = false
+	if mechanics and mechanics.has_method("set_stamina"):
+		mechanics.set_stamina(stamina)
+
 func get_stamina() -> float:
-	if mechanics:
+	if mechanics and mechanics.has_method("get_stamina"):
 		return mechanics.get_stamina()
-	return fallback_stamina
+	return stamina
+
+func set_max_stamina(val: float) -> void:
+	max_stamina = max(1.0, val)
+	fallback_max_stamina = max_stamina
 
 func get_max_stamina() -> float:
-	if mechanics:
+	if mechanics and mechanics.has_method("get_max_stamina"):
 		return mechanics.get_max_stamina()
-	return fallback_max_stamina
+	return max_stamina
 
 func get_current_speed() -> float:
 	var spd = fallback_base_speed
-	if mechanics:
-		spd = mechanics.get_current_speed()
+	if enable_stamina_fatigue and is_exhausted:
+		spd *= 0.8
 	if knock_on_boost_timer > 0.0:
 		spd *= 1.22
 	var cur_btn_l: bool = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
@@ -1087,3 +1147,161 @@ func get_current_speed() -> float:
 
 func get_facing_direction() -> Vector3:
 	return facing_direction
+
+# ---------------------------------------------------------------------------
+# Sistema de Duelo Superpuesto en Cancha (Pitch Brawl) y Aturdimiento
+# ---------------------------------------------------------------------------
+func set_stun(duration: float = 3.5) -> void:
+	stun_timer = max(0.0, duration)
+	velocity = Vector3.ZERO
+
+func _find_nearest_brawl_rival() -> Spatial:
+	var tree = get_tree()
+	if not tree:
+		return null
+	var candidate_groups = ["opponents", "rivals"]
+	var my_pos = global_transform.origin
+	var nearest_rival: Spatial = null
+	var min_dist: float = 999999.0
+
+	for grp in candidate_groups:
+		var nodes = tree.get_nodes_in_group(grp)
+		for node in nodes:
+			if node != self and node is Spatial and is_instance_valid(node) and not node.is_queued_for_deletion():
+				var node_pos = node.global_transform.origin
+				var dist_xz = Vector2(node_pos.x - my_pos.x, node_pos.z - my_pos.z).length()
+				if dist_xz <= 4.0 and dist_xz < min_dist:
+					min_dist = dist_xz
+					nearest_rival = node as Spatial
+	return nearest_rival
+
+func _show_brawl_warning_in_hud(msg: String) -> void:
+	var hud_nodes = get_tree().get_nodes_in_group("pitch_hud")
+	if hud_nodes.size() > 0 and hud_nodes[0].has_method("show_brawl_warning"):
+		hud_nodes[0].show_brawl_warning(msg)
+	elif has_node("../PitchHUD"):
+		var hud = get_node("../PitchHUD")
+		if hud.has_method("show_brawl_warning"):
+			hud.show_brawl_warning(msg)
+
+func trigger_pitch_brawl() -> bool:
+	return _trigger_pitch_brawl()
+
+func _trigger_pitch_brawl() -> bool:
+	if is_in_brawl or get_tree().paused:
+		return false
+
+	var rival = _find_nearest_brawl_rival()
+	if not rival:
+		print("[Player] No hay rivales a <= 4.0m para iniciar duelo.")
+		_show_brawl_warning_in_hud("¡ACÉRCATE A UN RIVAL PARA INICIAR DUELO!")
+		return false
+
+	_start_pitch_brawl_overlay(rival)
+	return true
+
+func start_pitch_brawl(rival = null):
+	if rival == null:
+		rival = _find_nearest_brawl_rival()
+	if not rival:
+		_show_brawl_warning_in_hud("¡ACÉRCATE A UN RIVAL PARA INICIAR DUELO!")
+		return null
+	return _start_pitch_brawl_overlay(rival)
+
+func _start_pitch_brawl_overlay(rival):
+	is_in_brawl = true
+
+	# 1. CanvasLayer (BrawlOverlayLayer, layer = 20)
+	var brawl_layer = CanvasLayer.new()
+	brawl_layer.name = "BrawlOverlayLayer"
+	brawl_layer.layer = 20
+	brawl_layer.pause_mode = Node.PAUSE_MODE_PROCESS
+
+	# 2. ViewportContainer + Viewport con transparent_bg = true y own_world = true
+	var vp_container = ViewportContainer.new()
+	vp_container.name = "BrawlViewportContainer"
+	vp_container.pause_mode = Node.PAUSE_MODE_PROCESS
+	vp_container.anchor_right = 1.0
+	vp_container.anchor_bottom = 1.0
+	vp_container.stretch = true
+
+	var vp = Viewport.new()
+	vp.name = "BrawlViewport"
+	vp.pause_mode = Node.PAUSE_MODE_PROCESS
+	vp.transparent_bg = true
+	vp.own_world = true
+	var tree = get_tree()
+	if tree and tree.root:
+		vp.size = tree.root.size
+	else:
+		vp.size = Vector2(1024, 600)
+	vp.render_target_update_mode = Viewport.UPDATE_ALWAYS
+
+	# 3. Instanciar res://scenes/FightArena.tscn
+	var arena_scene = load("res://scenes/FightArena.tscn")
+	if not arena_scene:
+		push_error("[Player] Error al cargar res://scenes/FightArena.tscn")
+		is_in_brawl = false
+		return null
+
+	var arena = arena_scene.instance()
+	arena.name = "FightArena"
+	arena.pause_mode = Node.PAUSE_MODE_PROCESS
+	arena.is_pitch_brawl = true
+
+	arena.connect("brawl_finished", self, "_on_brawl_finished", [brawl_layer, rival])
+
+	vp.add_child(arena)
+	vp_container.add_child(vp)
+	brawl_layer.add_child(vp_container)
+
+	if get_parent():
+		get_parent().add_child(brawl_layer)
+	elif tree and tree.root:
+		tree.root.add_child(brawl_layer)
+	else:
+		add_child(brawl_layer)
+
+	get_tree().paused = true
+	print("[Player] ¡DUELO INICIADO EN LA CANCHA! Cancha pausada, overlay 2.5D activo.")
+	return brawl_layer
+
+func _on_brawl_finished(player_won: bool, brawl_layer, rival) -> void:
+	is_in_brawl = false
+
+	# Destruir overlay
+	if brawl_layer and is_instance_valid(brawl_layer):
+		brawl_layer.queue_free()
+
+	# Reiniciar furia
+	fury = 0.0
+	emit_signal("fury_changed", fury, max_fury)
+
+	# Reanudar partido
+	get_tree().paused = false
+
+	# Aplicar aturdimiento temporal
+	if player_won:
+		if rival and is_instance_valid(rival):
+			if "stun_timer" in rival:
+				rival.stun_timer = 7.0
+			elif rival.has_method("set_stun"):
+				rival.set_stun(7.0)
+			if "velocity" in rival:
+				rival.velocity = Vector3.ZERO
+			if "target_velocity" in rival:
+				rival.target_velocity = Vector3.ZERO
+		print("[Player] ¡Ryu venció en el duelo! Rival aturdido por 7.0s.")
+	else:
+		stun_timer = 3.5
+		velocity = Vector3.ZERO
+		print("[Player] ¡Ryu fue derrotado en el duelo! Aturdido por 3.5s.")
+
+	# Refrescar RPG stats
+	var combat: int = combat_stat
+	var discipline: int = discipline_stat
+	if get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats"):
+		var stats = get_tree().root.get_meta("gtp_stats")
+		combat = stats.get("combat", combat)
+		discipline = stats.get("discipline", discipline)
+	apply_rpg_stats(combat, discipline)

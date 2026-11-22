@@ -2,12 +2,12 @@
 
 importer="scene"
 type="PackedScene"
-path="res://.import/oper.glb-6782dfba0bc78e511d9d6a8108d7ac8c.scn"
+path="res://.import/golpeabajo.glb-7932dacc691572fa4aca949730a0af2d.scn"
 
 [deps]
 
-source_file="res://assets/animaciones/animaciones .glb/oper.glb"
-dest_files=[ "res://.import/oper.glb-6782dfba0bc78e511d9d6a8108d7ac8c.scn" ]
+source_file="res://assets/animations/golpeabajo.glb"
+dest_files=[ "res://.import/golpeabajo.glb-7932dacc691572fa4aca949730a0af2d.scn" ]
 
 [params]
 

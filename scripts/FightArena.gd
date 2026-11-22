@@ -1,5 +1,9 @@
 extends Node2D
 
+signal brawl_finished(player_won)
+
+var is_pitch_brawl: bool = false
+
 # Sin anotación de tipo para evitar errores de cast de Godot 3.6 antes del set_script()
 onready var player = $Player
 onready var rival = $Rival
@@ -91,16 +95,23 @@ func _ready() -> void:
 
 	_update_labels()
 
+	# Configurar modo duelo en cancha si está activado
+	if is_pitch_brawl:
+		_setup_pitch_brawl_mode()
+
 	# Ocultar combo inicialmente
 	if combo_label:
 		combo_label.visible = false
 
 	# Mensaje inicial de inicio de pelea
-	message_label.text = "¡PELEA!"
+	if is_pitch_brawl:
+		message_label.text = "¡DUELO EN LA CANCHA!"
+	else:
+		message_label.text = "¡PELEA!"
 	message_label.modulate = Color(1.0, 0.9, 0.2)
 	message_label.visible = true
 
-	yield(get_tree().create_timer(1.2), "timeout")
+	yield(get_tree().create_timer(1.2, true), "timeout")
 	if not fight_over:
 		message_label.visible = false
 
@@ -217,15 +228,54 @@ func _finish_fight(player_won: bool) -> void:
 	if player_won:
 		message_label.text = "¡GANASTE!"
 		message_label.modulate = Color(0.2, 1.0, 0.3)
-		print("[FightArena] ¡El jugador ha ganado la pelea callejera!")
+		print("[FightArena] ¡El jugador ha ganado el duelo!")
 	else:
 		message_label.text = "PERDISTE"
 		message_label.modulate = Color(1.0, 0.25, 0.25)
-		print("[FightArena] ¡El jugador ha sido derrotado en la pelea callejera!")
+		print("[FightArena] ¡El jugador ha sido derrotado en el duelo!")
 
 	message_label.visible = true
 
-	# 1. Actualizar estadísticas en C++ mediante GekitotsuStoryManager
+	if is_pitch_brawl:
+		# Esperar 1.5s compatible con pausa
+		yield(get_tree().create_timer(1.5, true), "timeout")
+
+		# Actualizar estadísticas en C++ (+combate y -disciplina si Ryu gana; -disciplina si pierde)
+		if ClassDB.class_exists("GekitotsuStoryManager"):
+			var sm = null
+			if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
+				sm = ClassDB.instantiate("GekitotsuStoryManager")
+			elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
+				sm = ClassDB.instance("GekitotsuStoryManager")
+			if sm:
+				if sm.has_method("apply_fight_result"):
+					sm.apply_fight_result(player_won)
+				if player_won:
+					if sm.has_method("add_combat_technique"):
+						sm.add_combat_technique(10)
+					if sm.has_method("add_sports_discipline"):
+						sm.add_sports_discipline(-8)
+				else:
+					if sm.has_method("add_sports_discipline"):
+						sm.add_sports_discipline(-12)
+
+		# Respaldo persistente en meta
+		if get_tree() and get_tree().root:
+			var cur_stats = get_tree().root.get_meta("gtp_stats") if get_tree().root.has_meta("gtp_stats") else {
+				"discipline": 0, "combat": 0, "money": 0, "reputation": 0, "day": 1
+			}
+			if player_won:
+				cur_stats["combat"] = cur_stats.get("combat", 0) + 12
+				cur_stats["discipline"] = max(0, cur_stats.get("discipline", 0) - 8)
+			else:
+				cur_stats["discipline"] = max(0, cur_stats.get("discipline", 0) - 12)
+			get_tree().root.set_meta("gtp_stats", cur_stats)
+
+		emit_signal("brawl_finished", player_won)
+		# Retorno exacto al partido: ¡NO cambiar de escena a MainGame.tscn!
+		return
+
+	# Si NO es duelo en cancha (pelea callejera independiente):
 	if ClassDB.class_exists("GekitotsuStoryManager"):
 		var sm = null
 		if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
@@ -235,7 +285,6 @@ func _finish_fight(player_won: bool) -> void:
 		if sm and sm.has_method("apply_fight_result"):
 			sm.apply_fight_result(player_won)
 
-	# 2. Actualizar respaldo persistente en el árbol de Godot (fallback GDScript)
 	var cur_stats = get_tree().root.get_meta("gtp_stats") if get_tree().root.has_meta("gtp_stats") else {
 		"discipline": 0, "combat": 0, "money": 0, "reputation": 0, "day": 1
 	}
@@ -252,3 +301,44 @@ func _finish_fight(player_won: bool) -> void:
 	# Regresar automáticamente a MainGame.tscn tras 2 segundos
 	yield(get_tree().create_timer(2.0), "timeout")
 	get_tree().change_scene("res://scenes/MainGame.tscn")
+
+func _setup_pitch_brawl_mode() -> void:
+	pause_mode = Node.PAUSE_MODE_PROCESS
+
+	# Ocultar elementos visuales opacos de fondo y suelo del callejón (manteniendo intactas las colisiones del suelo y límites)
+	var env = get_node_or_null("Environment")
+	if env:
+		for child in env.get_children():
+			if child is ColorRect:
+				child.visible = false
+
+	# Capa 25 para el HUD interno
+	var canvas = get_node_or_null("CanvasLayer")
+	if canvas:
+		canvas.layer = 25
+		var banner = canvas.get_node_or_null("BrawlBanner")
+		if not banner:
+			banner = Label.new()
+			banner.name = "BrawlBanner"
+			banner.anchor_left = 0.5
+			banner.anchor_right = 0.5
+			banner.margin_left = -250.0
+			banner.margin_top = 8.0
+			banner.margin_right = 250.0
+			banner.margin_bottom = 36.0
+			banner.text = "¡DUELO EN LA CANCHA!"
+			banner.align = Label.ALIGN_CENTER
+			banner.valign = Label.VALIGN_CENTER
+			banner.modulate = Color(1.0, 0.85, 0.1)
+			canvas.add_child(banner)
+		else:
+			banner.text = "¡DUELO EN LA CANCHA!"
+			banner.visible = true
+
+	# Asegurar que todos los descendientes procesen con el árbol en pausa
+	_ensure_pause_process(self)
+
+func _ensure_pause_process(node: Node) -> void:
+	node.pause_mode = Node.PAUSE_MODE_PROCESS
+	for child in node.get_children():
+		_ensure_pause_process(child)

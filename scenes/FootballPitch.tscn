@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=2]
+[gd_scene load_steps=37 format=2]
 
 [ext_resource path="res://scripts/Player.gd" type="Script" id=1]
 [ext_resource path="res://scenes/FootballBall.tscn" type="PackedScene" id=2]
@@ -6,6 +6,13 @@
 [ext_resource path="res://scripts/PitchHUD.gd" type="Script" id=4]
 [ext_resource path="res://scripts/FootballAI.gd" type="Script" id=5]
 [ext_resource path="res://scripts/PitchCamera.gd" type="Script" id=6]
+
+[sub_resource type="PlaneMesh" id=25]
+size = Vector2( 120, 160 )
+
+[sub_resource type="SpatialMaterial" id=26]
+albedo_color = Color( 0.35, 0.35, 0.33, 1 )
+roughness = 0.95
 
 [sub_resource type="PlaneMesh" id=1]
 size = Vector2( 40, 90 )
@@ -55,6 +62,20 @@ roughness = 0.2
 
 [sub_resource type="CubeMesh" id=13]
 size = Vector3( 9.16, 0.16, 0.16 )
+
+[sub_resource type="CubeMesh" id=27]
+size = Vector3( 120, 3.5, 1.2 )
+
+[sub_resource type="SpatialMaterial" id=28]
+albedo_color = Color( 0.55, 0.55, 0.52, 1 )
+roughness = 0.75
+
+[sub_resource type="PlaneMesh" id=29]
+size = Vector2( 120, 12 )
+
+[sub_resource type="SpatialMaterial" id=30]
+albedo_color = Color( 0.42, 0.42, 0.4, 1 )
+roughness = 0.85
 
 [sub_resource type="CapsuleMesh" id=14]
 radius = 0.4
@@ -106,27 +127,6 @@ roughness = 0.4
 [sub_resource type="SpatialMaterial" id=20]
 albedo_color = Color( 0, 0.8, 0.85, 1 )
 roughness = 0.4
-
-[sub_resource type="PlaneMesh" id=25]
-size = Vector2( 120, 160 )
-
-[sub_resource type="SpatialMaterial" id=26]
-albedo_color = Color( 0.35, 0.35, 0.33, 1 )
-roughness = 0.95
-
-[sub_resource type="CubeMesh" id=27]
-size = Vector3( 120, 3.5, 1.2 )
-
-[sub_resource type="SpatialMaterial" id=28]
-albedo_color = Color( 0.55, 0.55, 0.52, 1 )
-roughness = 0.75
-
-[sub_resource type="PlaneMesh" id=29]
-size = Vector2( 120, 12 )
-
-[sub_resource type="SpatialMaterial" id=30]
-albedo_color = Color( 0.42, 0.42, 0.40, 1 )
-roughness = 0.85
 
 [node name="FootballPitch" type="Spatial"]
 
@@ -208,7 +208,7 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 20.25, 1.5, 0 )
 shape = SubResource( 9 )
 
 [node name="RivalGoalArea" type="Area" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -44.0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -44 )
 collision_layer = 0
 collision_mask = 2
 script = ExtResource( 3 )
@@ -218,7 +218,7 @@ goal_name = "Portería Rival (Norte)"
 shape = SubResource( 10 )
 
 [node name="PlayerGoalArea" type="Area" parent="."]
-transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 44.0 )
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 44 )
 collision_layer = 0
 collision_mask = 2
 script = ExtResource( 3 )
@@ -416,7 +416,7 @@ margin_top = -15.0
 margin_right = 250.0
 margin_bottom = 15.0
 rect_pivot_offset = Vector2( 250, 15 )
-text = "¡FURIA 100%: L + TIRO!"
+text = "¡FURIA 100%! Q+W (L1+R1): Duelo | Q+Tiro: Especial"
 align = 1
 valign = 1
 

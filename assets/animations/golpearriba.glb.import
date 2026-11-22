@@ -2,12 +2,12 @@
 
 importer="scene"
 type="PackedScene"
-path="res://.import/caminaratras.glb-12115a3d287e533698fc473236205909.scn"
+path="res://.import/golpearriba.glb-9ae545c4fbcffab49e94d6addd81f94c.scn"
 
 [deps]
 
-source_file="res://assets/animaciones/animaciones .glb/caminaratras.glb"
-dest_files=[ "res://.import/caminaratras.glb-12115a3d287e533698fc473236205909.scn" ]
+source_file="res://assets/animations/golpearriba.glb"
+dest_files=[ "res://.import/golpearriba.glb-9ae545c4fbcffab49e94d6addd81f94c.scn" ]
 
 [params]
 

@@ -2,12 +2,12 @@
 
 importer="scene"
 type="PackedScene"
-path="res://.import/golpecerca.fbx-895daaaba50928f24fb5e46ac7da86e6.scn"
+path="res://.import/caminar.glb-dccefff2d40e776c736f542f4540429f.scn"
 
 [deps]
 
-source_file="res://assets/animaciones/golpecerca.fbx"
-dest_files=[ "res://.import/golpecerca.fbx-895daaaba50928f24fb5e46ac7da86e6.scn" ]
+source_file="res://assets/animations/caminar.glb"
+dest_files=[ "res://.import/caminar.glb-dccefff2d40e776c736f542f4540429f.scn" ]
 
 [params]
 

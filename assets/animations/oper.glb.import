@@ -2,12 +2,12 @@
 
 importer="scene"
 type="PackedScene"
-path="res://.import/oper.fbx-f87fe73f1aaab10e987c919af67842dd.scn"
+path="res://.import/oper.glb-5aa8245030bf5c5dbb5a6e3d36733b9e.scn"
 
 [deps]
 
-source_file="res://assets/animaciones/oper.fbx"
-dest_files=[ "res://.import/oper.fbx-f87fe73f1aaab10e987c919af67842dd.scn" ]
+source_file="res://assets/animations/oper.glb"
+dest_files=[ "res://.import/oper.glb-5aa8245030bf5c5dbb5a6e3d36733b9e.scn" ]
 
 [params]
 

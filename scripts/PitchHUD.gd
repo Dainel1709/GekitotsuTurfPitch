@@ -26,6 +26,7 @@ var prev_btn_start: bool = false
 var prev_btn_select: bool = false
 
 func _ready() -> void:
+	add_to_group("pitch_hud")
 	pause_mode = Node.PAUSE_MODE_PROCESS
 	_resolve_mechanics()
 
@@ -67,7 +68,24 @@ func _on_player_fury_changed(fury_val: float, max_val: float) -> void:
 	if fury_notice_label:
 		fury_notice_label.visible = (fury_val >= 100.0 and not match_finished)
 		if fury_val >= 100.0:
+			fury_notice_label.text = "¡FURIA 100%! Q+W (L1+R1): Duelo | Q+Tiro: Especial"
 			fury_notice_label.modulate = Color(1.0, 0.85, 0.1)
+
+func show_brawl_warning(msg: String = "¡ACÉRCATE A UN RIVAL PARA INICIAR DUELO!") -> void:
+	if goal_notice_label:
+		goal_notice_label.text = msg
+		goal_notice_label.modulate = Color(1.0, 0.35, 0.15)
+		goal_notice_label.visible = true
+		yield(get_tree().create_timer(1.8, true), "timeout")
+		if not match_finished and goal_notice_label.text == msg:
+			goal_notice_label.visible = false
+	elif fury_notice_label:
+		var orig = fury_notice_label.text
+		fury_notice_label.text = msg
+		fury_notice_label.visible = true
+		yield(get_tree().create_timer(1.8, true), "timeout")
+		if fury_notice_label.text == msg:
+			fury_notice_label.text = orig
 
 func _update_controls_hint() -> void:
 	if controls_hint:

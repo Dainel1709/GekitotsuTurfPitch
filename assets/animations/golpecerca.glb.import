@@ -2,12 +2,12 @@
 
 importer="scene"
 type="PackedScene"
-path="res://.import/golpearriba.glb-b450681d5fb35051e1ddd8325f13d021.scn"
+path="res://.import/golpecerca.glb-b1e40b5a84786e9f212c826174fde396.scn"
 
 [deps]
 
-source_file="res://assets/animaciones/animaciones .glb/golpearriba.glb"
-dest_files=[ "res://.import/golpearriba.glb-b450681d5fb35051e1ddd8325f13d021.scn" ]
+source_file="res://assets/animations/golpecerca.glb"
+dest_files=[ "res://.import/golpecerca.glb-b1e40b5a84786e9f212c826174fde396.scn" ]
 
 [params]
 

@@ -2,12 +2,12 @@
 
 importer="scene"
 type="PackedScene"
-path="res://.import/Jugador fútbol.fbx-ca5133853ffa3c924c9d5e6a10ca24a5.scn"
+path="res://.import/caminaratras.glb-ff4c18a8ffc58f708c06a450e0b05017.scn"
 
 [deps]
 
-source_file="res://assets/models/Jugador fútbol.fbx"
-dest_files=[ "res://.import/Jugador fútbol.fbx-ca5133853ffa3c924c9d5e6a10ca24a5.scn" ]
+source_file="res://assets/animations/caminaratras.glb"
+dest_files=[ "res://.import/caminaratras.glb-ff4c18a8ffc58f708c06a450e0b05017.scn" ]
 
 [params]
 
