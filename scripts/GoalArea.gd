@@ -56,6 +56,15 @@ func _process_goal(ball: Node) -> void:
 		print("[MARCADOR C++] Jugador: " + str(player_score) + " | Rival: " + str(opponent_score))
 		print("=========================================")
 
+		# Notificar a los jugadores para sumar furia por gol en contra (+25.0)
+		var players = get_tree().get_nodes_in_group("player")
+		for p in players:
+			if p.has_method("on_goal_conceded"):
+				p.on_goal_conceded()
+			elif p.has_method("add_fury"):
+				var mult = p.fury_gain_mult if "fury_gain_mult" in p else 1.0
+				p.add_fury(25.0 * mult)
+
 	# Emitir señal para notificar a la UI u otros controladores
 	emit_signal("goal_scored", is_rival_goal, player_score, opponent_score)
 

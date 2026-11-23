@@ -181,6 +181,13 @@ func _update_controls_hint() -> void:
 			controls_hint.text = "PES: Cruz: Pase corto | □: Disparo | L+□: Tiro Especial | Δ: Pase al hueco | O: Centro | R: Sprint | L: Manual"
 
 func _process(delta: float) -> void:
+	# Actualización continua de barra y texto de Furia en cada frame
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		var p = players[0]
+		if "fury" in p:
+			_on_player_fury_changed(p.fury, p.max_fury if "max_fury" in p else 100.0)
+
 	# 1. Botón START: Pausar / Reanudar el partido
 	var start_pressed = Input.is_action_just_pressed("psp_start") or Input.is_key_pressed(KEY_ESCAPE) or Input.is_key_pressed(KEY_P) or (Input.is_joy_button_pressed(0, JOY_BUTTON_11) and not prev_btn_start)
 	if start_pressed and not prev_btn_start:
@@ -256,6 +263,39 @@ func _update_clock_and_hud() -> void:
 
 	if score_label:
 		score_label.text = "MARCADOR: JUGADOR  [ %d ]  -  [ %d ]  RIVAL" % [p_score, opp_score]
+
+func get_player_score() -> int:
+	if mechanics and mechanics.has_method("get_player_score"):
+		return mechanics.get_player_score()
+	var rival_goal = get_node_or_null("../RivalGoalArea")
+	if not rival_goal and get_tree() and get_tree().root:
+		rival_goal = get_tree().root.find_node("RivalGoalArea", true, false)
+	if rival_goal and "fallback_player_score" in rival_goal:
+		return rival_goal.fallback_player_score
+	return 0
+
+func get_opponent_score() -> int:
+	if mechanics and mechanics.has_method("get_opponent_score"):
+		return mechanics.get_opponent_score()
+	var player_goal = get_node_or_null("../PlayerGoalArea")
+	if not player_goal and get_tree() and get_tree().root:
+		player_goal = get_tree().root.find_node("PlayerGoalArea", true, false)
+	if player_goal and "fallback_opponent_score" in player_goal:
+		return player_goal.fallback_opponent_score
+	return 0
+
+func get_match_minute() -> int:
+	var clamped_real = min(MATCH_DURATION_REAL, real_elapsed_time)
+	return int((clamped_real * 30.0) / 60.0)
+
+func show_foul_notice(msg: String = "¡FALTA RECIBIDA! +30 FURIA") -> void:
+	if goal_notice_label:
+		goal_notice_label.text = msg
+		goal_notice_label.modulate = Color(1.0, 0.8, 0.1)
+		goal_notice_label.visible = true
+		yield(get_tree().create_timer(1.2, true), "timeout")
+		if not match_finished and goal_notice_label.text == msg:
+			goal_notice_label.visible = false
 
 func _on_goal_scored(is_rival_goal: bool, _player_score: int, _opponent_score: int) -> void:
 	if match_finished:

@@ -585,6 +585,8 @@ func receive_pass_call(target_player: Node) -> void:
 
 		ball_ref.linear_velocity = pass_impulse
 		ball_ref.apply_central_impulse(pass_impulse)
+		if target_player and target_player.has_method("on_incoming_pass"):
+			target_player.on_incoming_pass()
 		has_ball = false
 		is_dribbling = false
 		pass_to_player_cooldown = 1.6

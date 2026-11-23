@@ -50,6 +50,13 @@ var knock_on_boost_timer: float = 0.0
 var r_tap_timer: float = 0.0
 var prev_btn_r: bool = false
 
+# Recepción asistida de pases
+var expecting_pass: bool = false
+var pass_receive_timer: float = 0.0
+
+# Cooldown para recepción de faltas
+var foul_cooldown: float = 0.0
+
 # Detección de flancos para botones PPSSPP
 var prev_btn_cross: bool = false
 var prev_btn_circle: bool = false
@@ -184,6 +191,12 @@ func _physics_process(delta: float) -> void:
 		r_tap_timer = max(0.0, r_tap_timer - delta)
 	if tackle_cooldown > 0.0:
 		tackle_cooldown = max(0.0, tackle_cooldown - delta)
+	if pass_receive_timer > 0.0:
+		pass_receive_timer = max(0.0, pass_receive_timer - delta)
+		if pass_receive_timer <= 0.0:
+			expecting_pass = false
+	if foul_cooldown > 0.0:
+		foul_cooldown = max(0.0, foul_cooldown - delta)
 
 	# 2. Captura de Movimiento (Exclusivo Flechas + Cruceta/Stick del Mando)
 	var input_2d := Vector2.ZERO
@@ -322,16 +335,35 @@ func _physics_process(delta: float) -> void:
 
 	velocity = move_and_slide(velocity, Vector3.UP)
 
-	# 6. Conducción controlada del balón (Dribbling en plano X/Z)
+	# 6. Conducción controlada del balón (Dribbling en plano X/Z) y detección de colisiones
 	is_colliding_with_ball = false
 	var slide_count = get_slide_count()
 	for i in range(slide_count):
 		var col = get_slide_collision(i)
-		if col and col.collider and col.collider.is_in_group("ball"):
-			is_colliding_with_ball = true
-			if col.collider is RigidBody:
-				ball_ref = col.collider as RigidBody
+		if col and col.collider:
+			if col.collider.is_in_group("ball"):
+				is_colliding_with_ball = true
+				if col.collider is RigidBody:
+					ball_ref = col.collider as RigidBody
+			elif col.collider.is_in_group("opponents") or ("role" in col.collider and col.collider.role == "opponent"):
+				if foul_cooldown <= 0.0:
+					receive_foul(col.collider)
 
+	# Detección de contacto o disputa cercana con rivales para recibir falta
+	if foul_cooldown <= 0.0 and not is_in_brawl:
+		var opponents = get_tree().get_nodes_in_group("opponents")
+		for opp in opponents:
+			if opp != self and is_instance_valid(opp):
+				var opp_pos = opp.global_transform.origin
+				var dist_opp = global_transform.origin.distance_to(opp_pos)
+				var ball_near: bool = false
+				if ball_ref and is_instance_valid(ball_ref):
+					ball_near = global_transform.origin.distance_to(ball_ref.global_transform.origin) <= 2.2
+				if dist_opp <= 1.4 and (is_dribbling or is_ball_controlled or ball_near):
+					receive_foul(opp)
+					break
+
+	_update_match_tension_fury(delta)
 	_update_ball_dribble(delta, is_moving, is_sprinting)
 
 	# Orientar rotación hacia facing_direction suavizado
@@ -363,14 +395,31 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 	if dist_to_ball > 0.001:
 		dot = facing_direction.dot(to_ball / dist_to_ball)
 
-	# 1. Bandera booleana is_dribbling:
-	# Se activa cuando el balón entra en dribble_control_radius (1.65 m) con velocidad < 15.0 y de frente.
-	# Se mantiene activa mientras dist <= 1.75 m y kick_cooldown <= 0.0 (sin soltar cuando dot sea negativo en giros bruscos).
+	# 1. Bandera booleana is_dribbling y recepción asistida:
+	var ball_heading_towards_ryu: bool = (ball_speed > 1.0 and dist_to_ball > 0.01 and ball_ref.linear_velocity.dot(-to_ball.normalized()) > 1.2)
+	var is_receiving_pass: bool = (expecting_pass or pass_receive_timer > 0.0 or ball_heading_towards_ryu)
+	var max_allowed_speed: float = 26.0 if is_receiving_pass else 15.0
+	var effective_radius: float = 1.85 if is_receiving_pass else dribble_control_radius
+
 	if not is_dribbling:
-		if dist_to_ball <= dribble_control_radius and ball_speed < 15.0 and (dot >= -0.25 or dist_to_ball <= 0.45):
-			is_dribbling = true
+		if dist_to_ball <= effective_radius and ball_speed <= max_allowed_speed and kick_cooldown <= 0.0 and not _is_rival_near_ball(ball_pos, 0.8):
+			if dot >= -0.25 or dist_to_ball <= 0.45 or is_receiving_pass:
+				is_dribbling = true
+				if is_receiving_pass:
+					# Amortiguar inmediatamente su velocidad horizontal
+					ball_ref.linear_velocity.x *= 0.25
+					ball_ref.linear_velocity.z *= 0.25
+					# Colocarlo suavemente delante de los pies de Ryu sin que rebote contra su colisión física
+					var front_pos: Vector3 = player_pos + facing_direction * 0.75
+					front_pos.y = ball_ref.global_transform.origin.y
+					ball_ref.global_transform.origin = front_pos
+					ball_pos = front_pos
+					if expecting_pass or pass_receive_timer > 0.0:
+						add_fury(6.0 * fury_gain_mult)
+					expecting_pass = false
+					pass_receive_timer = 0.0
 	else:
-		if dist_to_ball > 1.75 or kick_cooldown > 0.0:
+		if dist_to_ball > 1.85 or kick_cooldown > 0.0:
 			is_dribbling = false
 
 	if is_dribbling:
@@ -442,12 +491,15 @@ func _is_ball_controlled() -> bool:
 	if not ball_ref or not is_instance_valid(ball_ref):
 		return false
 	var dist = translation.distance_to(ball_ref.translation)
-	if dist > dribble_control_radius or ball_ref.linear_velocity.length() >= 15.0:
+	var is_receiving_pass: bool = (expecting_pass or pass_receive_timer > 0.0)
+	var max_spd: float = 26.0 if is_receiving_pass else 15.0
+	var rad: float = 1.85 if is_receiving_pass else dribble_control_radius
+	if dist > rad or ball_ref.linear_velocity.length() > max_spd:
 		return false
 	var to_ball = ball_ref.global_transform.origin - global_transform.origin
 	to_ball.y = 0.0
 	var dot = facing_direction.dot(to_ball.normalized()) if dist > 0.001 else 1.0
-	return (dot >= -0.25 or dist <= 0.45)
+	return (dot >= -0.25 or dist <= 0.45 or is_receiving_pass)
 
 func _execute_knock_on() -> void:
 	if not ball_ref or not is_instance_valid(ball_ref):
@@ -633,15 +685,16 @@ func _execute_tackle() -> void:
 		is_ball_controlled = true
 		kick_cooldown = 0.0
 		tackle_cooldown = 0.45
-		add_fury(10.0 * fury_gain_mult)
-		print("[Player] ¡ENTRADA / ROBO exitoso! Balón recuperado (Tackle).")
+		add_fury(8.0 * fury_gain_mult)
+		print("[Player] ¡ENTRADA / ROBO exitoso! Balón recuperado (Tackle). +8 Furia.")
 	elif dist_to_ball <= 1.8 and ball_ref.linear_velocity.length() < 18.0:
 		# Balón suelto cerca: tomar control directo
 		is_dribbling = true
 		is_ball_controlled = true
 		kick_cooldown = 0.0
 		tackle_cooldown = 0.45
-		print("[Player] Balón suelto controlado con entrada.")
+		add_fury(8.0 * fury_gain_mult)
+		print("[Player] Balón suelto controlado con entrada. +8 Furia.")
 	else:
 		# Entrada fallida
 		tackle_cooldown = 0.45
@@ -887,7 +940,7 @@ func _execute_kick() -> void:
 	ball_ref.apply_central_impulse(kick_impulse)
 	var stamina_cost = 8.0 + shot_charge * 14.0
 	drain_stamina(stamina_cost)
-	add_fury(15.0 * fury_gain_mult)
+	add_fury(12.0 * fury_gain_mult)
 	kick_cooldown = 0.25
 	is_dribbling = false
 	is_ball_controlled = false
@@ -1016,6 +1069,7 @@ func _on_button_l_pressed() -> void:
 		return
 
 	# 3. Si el balón está lejos (> 2.2 m):
+	on_incoming_pass()
 	# Buscar si un compañero aliado tiene el balón o está a <= 4.5 m del balón suelto
 	var ally = _get_allied_teammate_near_ball(ball_pos, 4.5)
 	if ally != null:
@@ -1107,6 +1161,63 @@ func _resolve_ball_reference() -> void:
 
 func get_shot_charge() -> float:
 	return shot_charge
+
+func on_incoming_pass() -> void:
+	expecting_pass = true
+	pass_receive_timer = 2.5
+
+func receive_foul(opponent = null) -> void:
+	if foul_cooldown > 0.0:
+		return
+	foul_cooldown = 1.2
+	add_fury(30.0 * fury_gain_mult)
+	print("[Player] ¡FALTA RECIBIDA! Choque físico con rival (+30 Furia).")
+	var hud = _find_pitch_hud()
+	if hud and hud.has_method("show_foul_notice"):
+		hud.show_foul_notice("¡FALTA RECIBIDA! +30 FURIA")
+
+func on_goal_conceded() -> void:
+	add_fury(25.0 * fury_gain_mult)
+	print("[Player] Gol recibido en contra (+25 Furia).")
+
+func _update_match_tension_fury(delta: float) -> void:
+	if is_in_brawl or get_tree().paused:
+		return
+
+	var p_goals: int = 0
+	var r_goals: int = 0
+	var match_min: int = 0
+
+	var hud = _find_pitch_hud()
+	if hud:
+		if hud.has_method("get_player_score"):
+			p_goals = hud.get_player_score()
+		if hud.has_method("get_opponent_score"):
+			r_goals = hud.get_opponent_score()
+		if hud.has_method("get_match_minute"):
+			match_min = hud.get_match_minute()
+		elif "real_elapsed_time" in hud:
+			match_min = int((hud.real_elapsed_time * 30.0) / 60.0)
+	elif mechanics:
+		if mechanics.has_method("get_player_score"):
+			p_goals = mechanics.get_player_score()
+		if mechanics.has_method("get_opponent_score"):
+			r_goals = mechanics.get_opponent_score()
+
+	var tension_rate: float = 0.0
+	var diff: int = r_goals - p_goals
+
+	if diff >= 2:
+		tension_rate += 5.0
+	elif diff == 1:
+		tension_rate += 3.0
+
+	# En los últimos 15 minutos (>= 75') empatado o perdiendo suma +2.0 * delta
+	if match_min >= 75 and diff >= 0:
+		tension_rate += 2.0
+
+	if tension_rate > 0.0:
+		add_fury(tension_rate * delta * fury_gain_mult)
 
 func is_charging_shot() -> bool:
 	return is_charging
