@@ -28,11 +28,75 @@ const SDL_PLAYSTATION_MAPPINGS = [
 	"030000004c050000f20d000000000000,PS5 DualSense Edge,a:b1,b:b2,x:b0,y:b3,back:b8,start:b9,leftstick:b10,rightstick:b11,leftshoulder:b4,rightshoulder:b5,dpup:h0.1,dpright:h0.2,dpdown:h0.4,dpleft:h0.8,leftx:a0,lefty:a1,rightx:a2,righty:a5,lefttrigger:a3,righttrigger:a4,platform:Windows,"
 ]
 
+const SAVE_PATH: String = "user://savegame.json"
+
 func _ready() -> void:
 	pause_mode = Node.PAUSE_MODE_PROCESS
 	_register_sdl_mappings()
 	Input.connect("joy_connection_changed", self, "_on_joy_connection_changed")
 	update_controller_support(0)
+	load_progress()
+
+# --- Persistencia y Guardado de Ciclo de Liga (user://savegame.json) ---
+
+func has_save() -> bool:
+	var f = File.new()
+	return f.file_exists(SAVE_PATH)
+
+func get_default_save_data() -> Dictionary:
+	return {
+		"matchday": 1,
+		"league_wins": 0,
+		"league_losses": 0,
+		"discipline": 0,
+		"combat": 0,
+		"money": 0,
+		"reputation": 0,
+		"control_scheme": current_control_scheme
+	}
+
+func load_progress() -> Dictionary:
+	var data: Dictionary = get_default_save_data()
+	var f = File.new()
+	if not f.file_exists(SAVE_PATH):
+		return data
+	var err = f.open(SAVE_PATH, File.READ)
+	if err != OK:
+		return data
+	var json_str = f.get_as_text()
+	f.close()
+	var parse_res = JSON.parse(json_str)
+	if parse_res.error == OK and typeof(parse_res.result) == TYPE_DICTIONARY:
+		for k in parse_res.result.keys():
+			data[k] = parse_res.result[k]
+		if data.has("control_scheme"):
+			current_control_scheme = int(data["control_scheme"])
+	return data
+
+func save_progress(new_fields: Dictionary = {}) -> bool:
+	var data: Dictionary = load_progress()
+	for k in new_fields.keys():
+		data[k] = new_fields[k]
+	if not data.has("control_scheme"):
+		data["control_scheme"] = current_control_scheme
+	
+	var f = File.new()
+	var err = f.open(SAVE_PATH, File.WRITE)
+	if err != OK:
+		push_error("[GameSettings] Error al abrir %s para escritura: %d" % [SAVE_PATH, err])
+		return false
+	f.store_string(JSON.print(data, "\t"))
+	f.close()
+	print("[GameSettings] Progreso de liga guardado exitosamente: Jornada %d | %d V / %d D" % [
+		data.get("matchday", 1), data.get("league_wins", 0), data.get("league_losses", 0)
+	])
+	return true
+
+func reset_save() -> void:
+	var dir = Directory.new()
+	if dir.file_exists(SAVE_PATH):
+		dir.remove(SAVE_PATH)
+	print("[GameSettings] Archivo de guardado reiniciado.")
 
 func _register_sdl_mappings() -> void:
 	for mapping in SDL_PLAYSTATION_MAPPINGS:

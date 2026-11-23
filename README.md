@@ -40,7 +40,7 @@ Diseñado con una arquitectura modular y optimizado para **Godot 3.6 (GLES2)** c
   * **Pases Asistidos:**
     * Botón $\times$ (Cruz / Z): Pase corto raso asistido hacia compañeros desmarcados.
     * Botón $\bigcirc$ (Círculo / X): Pase bombeado / Centro al área.
-    * Botón $\Delta$ (Triángulo / S): Pase en profundidad al hueco con anticipación de carrera.
+    * Botón $\Delta$ (Triángulo / S): Pase en profundidad al hueco con anticipación de desmarque en velocidad.
     * Botón $\square$ (Cuadrado / A): Disparo cargado a puerta con medidor de potencia.
   * **Tiro Especial (*Gekitotsu Shot*):** Al alcanzar el 100% en la barra de Furia, presionar **Gatillo L + Disparo** desata un remate a máxima velocidad (>35 m/s) con destello dorado.
 * **Inteligencia Artificial de Partido (`FootballAI.gd`):**
@@ -68,7 +68,7 @@ Diseñado con una arquitectura modular y optimizado para **Godot 3.6 (GLES2)** c
 * Toma de decisiones diarias que equilibran:
   * **Disciplina Deportiva:** Aumenta resistencia, reduce el drenaje de estamina al esprintar y mejora el control del balón.
   * **Técnica de Combate:** Incrementa la potencia de tiro, daño de golpes y velocidad de acumulación de Furia.
-  * **Dinero y Reputación Callejera:** Desbloquea rutas de supervivencia urbana y define el desenlace de la carrera a los 18 años.
+  * **Dinero y Reputación Callejera:** Desbloquea rutas de supervivencia urbana y define el desenlace de la trayectoria a los 18 años.
 
 ---
 

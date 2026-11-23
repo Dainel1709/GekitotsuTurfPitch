@@ -87,14 +87,14 @@ public:
      * Nivel 3: Nodos Hoja con los 4 Finales Sorpresa a los 18 años
      */
     void build_default_career_tree() {
-        // --- Nivel 0: Raíz (Inicio de carrera) ---
+        // --- Nivel 0: Raíz (Inicio de trayectoria) ---
         root = new Node({
             "DAY_01",
             "La Encrucijada de la Cantera",
-            "Has sido admitido en las pruebas del club juvenil, pero esta noche hay una carrera clandestina que paga el alquiler familiar.",
+            "Has sido admitido en las pruebas del club juvenil, pero esta noche hay una pelea clandestina en el callejón que paga el alquiler familiar.",
             "Quedarte a descansar para el entrenamiento de mañana (+Disciplina, -Dinero)",
             StatModifier(+15, -5, 0, +20, 0),
-            "Asistir a la carrera clandestina (+Reputación, +Dinero, -Energía)",
+            "Aceptar la pelea clandestina (+Reputación, +Dinero, +Combate, -Energía)",
             StatModifier(-10, +20, +5, -30, +500),
             ""
         });
@@ -156,7 +156,7 @@ public:
         root->right->right = new Node({
             "ENDING_STREET_KINGPIN",
             "Final 4: El Rey del Asfalto",
-            "Dominas los circuitos de carreras y combates clandestinos de la ciudad.",
+            "Dominas las apuestas y combates clandestinos de la ciudad.",
             "", StatModifier(), "", StatModifier(),
             "Cambiaste los tacos de fútbol por el control total de las apuestas nocturnas."
         });

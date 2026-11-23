@@ -70,6 +70,7 @@ var is_exhausted: bool = false
 var stun_timer: float = 0.0
 var is_in_brawl: bool = false
 var prev_both_triggers: bool = false
+var pitch_brawls_count: int = 0
 
 var fallback_base_speed: float = 10.0
 var stamina: float = 100.0 setget set_stamina, get_stamina
@@ -996,7 +997,7 @@ func _on_button_l_pressed() -> void:
 	# 1. Si existe algún rival a menos de 2.2 m del balón (el rival tiene posesión),
 	# presionar L NO debe pasar ni atraer el balón hacia el jugador; ignora la petición.
 	if _is_rival_near_ball(ball_pos, 2.2):
-		print("[Carrera] Botón L (Q / L1): Posesión rival (< 2.2m); petición ignorada.")
+		print("[Futbol] Botón L (Q / L1): Posesión rival (< 2.2m); petición ignorada.")
 		return
 
 	# 2. Si el balón está a <= 2.2 m del propio jugador (y no lo tiene un rival):
@@ -1011,7 +1012,7 @@ func _on_button_l_pressed() -> void:
 		is_dribbling = true
 		is_ball_controlled = true
 		kick_cooldown = 0.0
-		print("[Carrera] Botón L (Q / L1): Recepción / Control orientado a 0.65 m hacia portería.")
+		print("[Futbol] Botón L (Q / L1): Recepción / Control orientado a 0.65 m hacia portería.")
 		return
 
 	# 3. Si el balón está lejos (> 2.2 m):
@@ -1020,7 +1021,7 @@ func _on_button_l_pressed() -> void:
 	if ally != null:
 		if ally.has_method("receive_pass_call"):
 			ally.receive_pass_call(self)
-			print("[Carrera] Botón L (Q / L1): Compañero aliado pasa a Ryu y se desmarca.")
+			print("[Futbol] Botón L (Q / L1): Compañero aliado pasa a Ryu y se desmarca.")
 			return
 		else:
 			var pass_target = player_pos + (facing_direction * 1.0)
@@ -1033,7 +1034,7 @@ func _on_button_l_pressed() -> void:
 				var impulse = Vector3(pass_dir.x * pass_speed, 0.08, pass_dir.z * pass_speed)
 				ball_ref.linear_velocity = impulse
 				ball_ref.apply_central_impulse(impulse)
-				print("[Carrera] Botón L (Q / L1): Compañero aliado realiza pase hacia Ryu.")
+				print("[Futbol] Botón L (Q / L1): Compañero aliado realiza pase hacia Ryu.")
 				return
 
 	# Si hay otros compañeros en el grupo teammates con receive_pass_call a <= 4.5m o con balón
@@ -1046,12 +1047,12 @@ func _on_button_l_pressed() -> void:
 			var has_it = ("has_ball" in t and t.has_ball) or ("is_dribbling" in t and t.is_dribbling)
 			if has_it or t_dist <= 4.5:
 				t.receive_pass_call(self)
-				print("[Carrera] Botón L (Q / L1): Teammate llamado a pasar y desmarcarse.")
+				print("[Futbol] Botón L (Q / L1): Teammate llamado a pasar y desmarcarse.")
 				return
 
 	# 4. Balón suelto en la cancha y no hay nadie cerca:
 	# Se elimina por completo la atracción magnética desde lejos. No hacer nada.
-	print("[Carrera] Botón L (Q / L1): Balón suelto sin compañeros cerca (< 4.5m); petición ignorada.")
+	print("[Futbol] Botón L (Q / L1): Balón suelto sin compañeros cerca (< 4.5m); petición ignorada.")
 		
 func _calculate_kick_vector(kick_dir: Vector3, charge: float) -> Vector3:
 	if mechanics:
@@ -1175,19 +1176,39 @@ func _find_nearest_brawl_rival() -> Spatial:
 					nearest_rival = node as Spatial
 	return nearest_rival
 
+func _find_pitch_camera():
+	var tree = get_tree()
+	if not tree:
+		return null
+	var cams = tree.get_nodes_in_group("pitch_camera")
+	if cams.size() > 0:
+		return cams[0]
+	if has_node("../PitchCamera"):
+		return get_node("../PitchCamera")
+	if has_node("../OverheadCamera"):
+		return get_node("../OverheadCamera")
+	return null
+
+func _find_pitch_hud():
+	var tree = get_tree()
+	if not tree:
+		return null
+	var huds = tree.get_nodes_in_group("pitch_hud")
+	if huds.size() > 0:
+		return huds[0]
+	if has_node("../PitchHUD"):
+		return get_node("../PitchHUD")
+	return null
+
 func _show_brawl_warning_in_hud(msg: String) -> void:
-	var hud_nodes = get_tree().get_nodes_in_group("pitch_hud")
-	if hud_nodes.size() > 0 and hud_nodes[0].has_method("show_brawl_warning"):
-		hud_nodes[0].show_brawl_warning(msg)
-	elif has_node("../PitchHUD"):
-		var hud = get_node("../PitchHUD")
-		if hud.has_method("show_brawl_warning"):
-			hud.show_brawl_warning(msg)
+	var hud = _find_pitch_hud()
+	if hud and hud.has_method("show_brawl_warning"):
+		hud.show_brawl_warning(msg)
 
-func trigger_pitch_brawl() -> bool:
-	return _trigger_pitch_brawl()
+func trigger_pitch_brawl(instant: bool = false) -> bool:
+	return _trigger_pitch_brawl(instant)
 
-func _trigger_pitch_brawl() -> bool:
+func _trigger_pitch_brawl(instant: bool = false) -> bool:
 	if is_in_brawl or get_tree().paused:
 		return false
 
@@ -1197,8 +1218,37 @@ func _trigger_pitch_brawl() -> bool:
 		_show_brawl_warning_in_hud("¡ACÉRCATE A UN RIVAL PARA INICIAR DUELO!")
 		return false
 
-	_start_pitch_brawl_overlay(rival)
-	return true
+	is_in_brawl = true
+
+	# 1. Transición cinematográfica: Zoom rápido de PitchCamera al punto medio entre Ryu y el rival
+	var my_pos = global_transform.origin
+	var rival_pos = rival.global_transform.origin if "global_transform" in rival else my_pos
+	var midpoint: Vector3 = (my_pos + rival_pos) * 0.5
+
+	var cam = _find_pitch_camera()
+	if cam and cam.has_method("start_cinematic_zoom"):
+		cam.start_cinematic_zoom(midpoint)
+
+	# 2. Flash de pantalla breve y banner '¡CHISPA EN EL CÉSPED! ¡DUELO 1 VS 1!' en PitchHUD
+	var hud = _find_pitch_hud()
+	if hud and hud.has_method("play_brawl_transition"):
+		hud.play_brawl_transition("¡CHISPA EN EL CÉSPED! ¡DUELO 1 VS 1!")
+
+	# Pausar la cancha para que los jugadores y el balón se detengan
+	get_tree().paused = true
+
+	# 3. Micro-secuencia de 0.35s compatible con pausa antes de desplegar FightArena
+	if not instant and get_tree() and get_tree().current_scene != null:
+		_delayed_start_pitch_brawl_overlay(rival)
+		return true
+
+	var layer = _start_pitch_brawl_overlay(rival)
+	return layer != null
+
+func _delayed_start_pitch_brawl_overlay(rival) -> void:
+	yield(get_tree().create_timer(0.35, true), "timeout")
+	if is_in_brawl:
+		_start_pitch_brawl_overlay(rival)
 
 func start_pitch_brawl(rival = null):
 	if rival == null:
@@ -1206,6 +1256,20 @@ func start_pitch_brawl(rival = null):
 	if not rival:
 		_show_brawl_warning_in_hud("¡ACÉRCATE A UN RIVAL PARA INICIAR DUELO!")
 		return null
+
+	is_in_brawl = true
+	var my_pos = global_transform.origin
+	var rival_pos = rival.global_transform.origin if "global_transform" in rival else my_pos
+	var midpoint: Vector3 = (my_pos + rival_pos) * 0.5
+
+	var cam = _find_pitch_camera()
+	if cam and cam.has_method("start_cinematic_zoom"):
+		cam.start_cinematic_zoom(midpoint)
+
+	var hud = _find_pitch_hud()
+	if hud and hud.has_method("play_brawl_transition"):
+		hud.play_brawl_transition("¡CHISPA EN EL CÉSPED! ¡DUELO 1 VS 1!")
+
 	return _start_pitch_brawl_overlay(rival)
 
 func _start_pitch_brawl_overlay(rival):
@@ -1267,20 +1331,28 @@ func _start_pitch_brawl_overlay(rival):
 	return brawl_layer
 
 func _on_brawl_finished(player_won: bool, brawl_layer, rival) -> void:
-	is_in_brawl = false
+	pitch_brawls_count += 1
 
-	# Destruir overlay
+	# 1. Destruir overlay
 	if brawl_layer and is_instance_valid(brawl_layer):
 		brawl_layer.queue_free()
 
-	# Reiniciar furia
+	# 2. Restaurar zoom de PitchCamera suavemente
+	var cam = _find_pitch_camera()
+	if cam and cam.has_method("reset_cinematic_zoom"):
+		cam.reset_cinematic_zoom()
+
+	# 3. Reiniciar furia
 	fury = 0.0
 	emit_signal("fury_changed", fury, max_fury)
 
-	# Reanudar partido
-	get_tree().paused = false
+	# 4. Mostrar resultado del duelo en PitchHUD
+	var hud = _find_pitch_hud()
+	if hud and hud.has_method("show_duel_result"):
+		var result_msg = "¡RIVAL NOQUEADO EN EL CÉSPED!" if player_won else "¡RYU ATURDIDO!"
+		hud.show_duel_result(result_msg, player_won)
 
-	# Aplicar aturdimiento temporal
+	# 5. Aplicar aturdimiento temporal
 	if player_won:
 		if rival and is_instance_valid(rival):
 			if "stun_timer" in rival:
@@ -1297,11 +1369,66 @@ func _on_brawl_finished(player_won: bool, brawl_layer, rival) -> void:
 		velocity = Vector3.ZERO
 		print("[Player] ¡Ryu fue derrotado en el duelo! Aturdido por 3.5s.")
 
-	# Refrescar RPG stats
-	var combat: int = combat_stat
-	var discipline: int = discipline_stat
-	if get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats"):
-		var stats = get_tree().root.get_meta("gtp_stats")
-		combat = stats.get("combat", combat)
-		discipline = stats.get("discipline", discipline)
-	apply_rpg_stats(combat, discipline)
+	# 6. Consecuencia arbitral por pelear en la cancha
+	var cur_stats = get_tree().root.get_meta("gtp_stats") if (get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats")) else {
+		"discipline": discipline_stat, "combat": combat_stat, "money": 0, "reputation": 0
+	}
+	var cur_disc: int = int(cur_stats.get("discipline", discipline_stat))
+
+	if pitch_brawls_count == 1:
+		# 1er duelo: Tarjeta Amarilla y descuento de Disciplina
+		cur_stats["discipline"] = max(0, cur_disc - 15)
+		if get_tree() and get_tree().root:
+			get_tree().root.set_meta("gtp_stats", cur_stats)
+
+		if ClassDB.class_exists("GekitotsuStoryManager"):
+			var sm = null
+			if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
+				sm = ClassDB.instantiate("GekitotsuStoryManager")
+			elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
+				sm = ClassDB.instance("GekitotsuStoryManager")
+			if sm and sm.has_method("add_sports_discipline"):
+				sm.add_sports_discipline(-15)
+
+		if hud and hud.has_method("show_referee_card"):
+			hud.show_referee_card("yellow", "¡TARJETA AMARILLA! Última advertencia del árbitro")
+
+		# Reanudar partido
+		get_tree().paused = false
+		is_in_brawl = false
+		apply_rpg_stats(int(cur_stats.get("combat", combat_stat)), int(cur_stats.get("discipline", discipline_stat)))
+		print("[Player] Árbitro muestra Tarjeta Amarilla (1er duelo). Disciplina descontada. Partido reanudado.")
+
+		# Ocultar aviso de tarjeta tras 2.2s
+		yield(get_tree().create_timer(2.2, true), "timeout")
+		if hud and hud.has_method("hide_referee_card"):
+			hud.hide_referee_card()
+
+	else:
+		# 2do duelo o disciplina agotada: Tarjeta Roja (Expulsión por conducta antideportiva)
+		cur_stats["discipline"] = max(0, cur_disc - 30)
+		cur_stats["reputation"] = cur_stats.get("reputation", 0) + 20
+		if get_tree() and get_tree().root:
+			get_tree().root.set_meta("gtp_stats", cur_stats)
+
+		if ClassDB.class_exists("GekitotsuStoryManager"):
+			var sm = null
+			if ClassDB.has_method("can_instantiate") and ClassDB.can_instantiate("GekitotsuStoryManager"):
+				sm = ClassDB.instantiate("GekitotsuStoryManager")
+			elif ClassDB.has_method("can_instance") and ClassDB.can_instance("GekitotsuStoryManager"):
+				sm = ClassDB.instance("GekitotsuStoryManager")
+			if sm and sm.has_method("add_sports_discipline"):
+				sm.add_sports_discipline(-30)
+
+		if hud and hud.has_method("show_referee_card"):
+			hud.show_referee_card("red", "¡TARJETA ROJA! Expulsión por conducta antideportiva")
+		if hud and hud.has_method("finish_match_disqualification"):
+			hud.finish_match_disqualification()
+
+		print("[Player] Árbitro muestra Tarjeta Roja (2do duelo o disciplina en 0). Expulsión.")
+
+		# Esperar 2.5s y regresar a MainGame.tscn
+		yield(get_tree().create_timer(2.5, true), "timeout")
+		get_tree().paused = false
+		is_in_brawl = false
+		get_tree().change_scene("res://scenes/MainGame.tscn")

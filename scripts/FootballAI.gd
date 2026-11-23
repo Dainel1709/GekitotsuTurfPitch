@@ -63,6 +63,21 @@ func _ready() -> void:
 		add_to_group("opponents")
 		facing_direction = Vector3(0, 0, 1)
 
+		# Escalar ligeramente velocidad y ritmo de la IA rival según la jornada de liga
+		var matchday: int = 1
+		var gs = get_node_or_null("/root/GameSettings")
+		if gs and gs.has_method("load_progress"):
+			var save_d = gs.load_progress()
+			matchday = int(save_d.get("matchday", 1))
+		elif get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats"):
+			var s = get_tree().root.get_meta("gtp_stats")
+			matchday = int(s.get("matchday", 1))
+
+		var scale_factor: float = clamp(float(matchday - 1) * 0.035, 0.0, 0.35)
+		move_speed = 7.4 * (1.0 + scale_factor)
+		sprint_speed = 10.4 * (1.0 + scale_factor)
+		dribble_speed = 7.0 * (1.0 + scale_factor * 0.5)
+
 	initial_facing = facing_direction
 
 	# Aplicar material independiente sobre el nodo hijo MeshInstance

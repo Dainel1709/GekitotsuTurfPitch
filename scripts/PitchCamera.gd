@@ -18,10 +18,25 @@ export var max_size: float = 72.0
 var player = null
 var ball = null
 
+# Modo cinematográfico para duelos en cancha
+var is_cinematic_zoom: bool = false
+var cinematic_target_pos: Vector3 = Vector3.ZERO
+
 func _ready():
+	add_to_group("pitch_camera")
+	pause_mode = Node.PAUSE_MODE_PROCESS
 	current = true
 	rotation_degrees = Vector3(tilt_x_deg, 0.0, 0.0)
 	_refresh_targets()
+
+func start_cinematic_zoom(target_midpoint: Vector3) -> void:
+	is_cinematic_zoom = true
+	cinematic_target_pos = target_midpoint
+	print("[PitchCamera] Zoom cinematográfico iniciado hacia: ", target_midpoint)
+
+func reset_cinematic_zoom() -> void:
+	is_cinematic_zoom = false
+	print("[PitchCamera] Zoom cinematográfico restablecido.")
 
 func _refresh_targets():
 	var players = get_tree().get_nodes_in_group("player")
@@ -37,6 +52,17 @@ func _refresh_targets():
 		ball = get_node("../FootballBall")
 
 func _process(delta):
+	if is_cinematic_zoom:
+		var target_x = clamp(cinematic_target_pos.x, -18.0, 18.0)
+		var target_y = 15.0 # Altura de primer plano dramático
+		var target_z = cinematic_target_pos.z + 6.0 # Offset cercano con ángulo aéreo
+		var blend_fast = clamp(12.0 * delta, 0.0, 1.0)
+		translation.x = lerp(translation.x, target_x, blend_fast)
+		translation.y = lerp(translation.y, target_y, blend_fast)
+		translation.z = lerp(translation.z, target_z, blend_fast)
+		rotation_degrees = Vector3(tilt_x_deg, 0.0, 0.0)
+		return
+
 	if not is_instance_valid(player) or not is_instance_valid(ball):
 		_refresh_targets()
 		if not is_instance_valid(player) or not is_instance_valid(ball):
