@@ -322,9 +322,11 @@ func _finish_match_90_minutes() -> void:
 	# 1. Detener el jugador y el balón
 	var players = get_tree().get_nodes_in_group("player")
 	for p in players:
+		if not is_instance_valid(p) or p.is_queued_for_deletion():
+			continue
 		if "can_move" in p:
 			p.can_move = false
-		if "velocity" in p:
+		if p is KinematicBody:
 			p.velocity = Vector3.ZERO
 
 	var balls = get_tree().get_nodes_in_group("ball")
@@ -414,9 +416,11 @@ func finish_match_disqualification() -> void:
 
 	var players = get_tree().get_nodes_in_group("player")
 	for p in players:
+		if not is_instance_valid(p) or p.is_queued_for_deletion():
+			continue
 		if "can_move" in p:
 			p.can_move = false
-		if "velocity" in p:
+		if p is KinematicBody:
 			p.velocity = Vector3.ZERO
 
 	var balls = get_tree().get_nodes_in_group("ball")

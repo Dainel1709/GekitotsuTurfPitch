@@ -401,10 +401,12 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 	var max_allowed_speed: float = 26.0 if is_receiving_pass else 15.0
 	var effective_radius: float = 1.85 if is_receiving_pass else dribble_control_radius
 
+	var just_started_dribble: bool = false
 	if not is_dribbling:
 		if dist_to_ball <= effective_radius and ball_speed <= max_allowed_speed and kick_cooldown <= 0.0 and not _is_rival_near_ball(ball_pos, 0.8):
-			if dot >= -0.25 or dist_to_ball <= 0.45 or is_receiving_pass:
+			if dot >= -0.25 or dist_to_ball <= 0.45 or is_receiving_pass or (is_moving and dot < 0.0):
 				is_dribbling = true
+				just_started_dribble = true
 				if is_receiving_pass:
 					# Amortiguar inmediatamente su velocidad horizontal
 					ball_ref.linear_velocity.x *= 0.25
@@ -426,12 +428,14 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 		is_ball_controlled = true
 
 		# 2. Distancia objetivo:
-		# Conducción en Corto con L presionado (0.65 m), giro cerrado con dot < 0.2 (0.70 m),
-		# sprint (1.45 m) o caminar normal (1.0 m)
+		# Conducción en Corto con L presionado (0.65 m), sprint (1.45 m) o caminar normal (1.0 m)
 		var is_holding_l: bool = Input.is_action_pressed("psp_l") or Input.is_key_pressed(KEY_Q) or Input.is_joy_button_pressed(0, JOY_BUTTON_4)
 		var target_dist: float = 1.0
+		var is_running_forward: bool = is_moving and (velocity.dot(facing_direction) >= -0.1 or velocity.length_squared() < 0.5)
 		if is_holding_l:
 			target_dist = 0.65
+		elif is_running_forward and dot < 0.35:
+			target_dist = 1.25 if is_sprinting else 1.0
 		elif dot < 0.2:
 			target_dist = 0.70
 		elif is_sprinting:
@@ -443,20 +447,32 @@ func _update_ball_dribble(delta: float, is_moving: bool, is_sprinting: bool) -> 
 		var to_target: Vector3 = target_pos - ball_pos
 		to_target.y = 0.0
 
+		# Adelantar suavemente hacia el frente con impulso si inicia la conducción o si el balón quedó detrás corriendo al frente
+		var should_nudge_forward: bool = (just_started_dribble and (dot < 0.0 or is_moving)) or (is_running_forward and dot < 0.0)
+		if should_nudge_forward:
+			var forward_dir: Vector3 = to_target.normalized()
+			if forward_dir.length_squared() > 0.01:
+				var push_force: float = clamp(to_target.length() * 1.5, 0.8, 2.5)
+				ball_ref.apply_central_impulse(forward_dir * push_force)
+
 		var vel_carry: Vector3 = velocity * 0.85 if is_moving else Vector3.ZERO
 		var target_vel: Vector3 = to_target * 10.0 + vel_carry
 
 		# 3. Limitar (clamp) la velocidad máxima de corrección del balón en X/Z
-		# a max_dribble_speed = max(current_speed * 1.35, 12.5) para que al girar 180° el balón orbite
+		# a max_dribble_speed = max(current_speed * 1.35, 12.5) para que al girar 180° el balón orbite,
+		# y max_dribble_speed = max(current_speed * 1.85, 16.0) mientras dot < 0.35 para adelantar rápidamente
 		var player_speed: float = velocity.length()
 		var max_dribble_speed: float = max(player_speed * 1.35, 12.5)
+		if dot < 0.35 and (is_running_forward or just_started_dribble):
+			max_dribble_speed = max(player_speed * 1.85, 16.0)
+
 		var target_h_speed: float = Vector2(target_vel.x, target_vel.z).length()
 		if target_h_speed > max_dribble_speed and target_h_speed > 0.001:
 			var scale_factor = max_dribble_speed / target_h_speed
 			target_vel.x *= scale_factor
 			target_vel.z *= scale_factor
 
-		var lerp_weight: float = clamp(14.0 * delta, 0.0, 1.0)
+		var lerp_weight: float = clamp((20.0 if dot < 0.35 else 14.0) * delta, 0.0, 1.0)
 		ball_ref.linear_velocity.x = lerp(ball_ref.linear_velocity.x, target_vel.x, lerp_weight)
 		ball_ref.linear_velocity.z = lerp(ball_ref.linear_velocity.z, target_vel.z, lerp_weight)
 
@@ -1530,6 +1546,14 @@ func _on_brawl_finished(player_won: bool, brawl_layer, rival) -> void:
 				sm = ClassDB.instance("GekitotsuStoryManager")
 			if sm and sm.has_method("add_sports_discipline"):
 				sm.add_sports_discipline(-30)
+
+		# Asegurar que el overlay de FightArena esté destruido (queue_free) ANTES de finish_match_disqualification
+		if brawl_layer and is_instance_valid(brawl_layer):
+			brawl_layer.queue_free()
+
+		var found_layer = get_tree().root.find_node("BrawlOverlayLayer", true, false) if (get_tree() and get_tree().root) else null
+		if found_layer and is_instance_valid(found_layer):
+			found_layer.queue_free()
 
 		if hud and hud.has_method("show_referee_card"):
 			hud.show_referee_card("red", "¡TARJETA ROJA! Expulsión por conducta antideportiva")

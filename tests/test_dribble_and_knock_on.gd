@@ -200,6 +200,31 @@ func _init():
 	assert(player.is_ball_controlled, "is_ball_controlled debe estar activo")
 	print("  -> Recepción y freno a 0.65m delante del jugador OK")
 
+	# --------------------------------------------------------------------------
+	# 10. Verificación de Recoger Balón desde Atrás al Correr al Frente (dot < 0.0)
+	# --------------------------------------------------------------------------
+	print("\n[10] Verificando recogida del balón desde atrás corriendo hacia el frente...")
+	player.translation = Vector3(0.0, 0.0, 0.0)
+	player.facing_direction = Vector3(0.0, 0.0, -1.0) # Mirando al Norte (-Z)
+	player.velocity = Vector3(0.0, 0.0, -10.0) # Corriendo al frente a 10 m/s
+	player.is_dribbling = false
+	player.is_ball_controlled = false
+	ball.translation = Vector3(0.0, 0.25, 0.8) # Balón a la espalda (+Z) a 0.8m
+	ball.linear_velocity = Vector3.ZERO
+
+	# Ejecutar actualización de conducción
+	player._update_ball_dribble(1.0 / 60.0, true, false)
+	assert(player.is_dribbling == true, "Ryu debe iniciar conducción aunque el balón esté detrás si corre al frente")
+	assert(player.is_ball_controlled == true, "is_ball_controlled debe ser true")
+	assert(ball.linear_velocity.z < 0.0, "El balón debe recibir impulso hacia el frente (-Z)")
+
+	# Velocidad horizontal del balón debe acelerar con max_dribble_speed = max(current_speed * 1.85, 16.0)
+	var max_forward_spd = max(player.velocity.length() * 1.85, 16.0)
+	var ball_spd_now = Vector2(ball.linear_velocity.x, ball.linear_velocity.z).length()
+	assert(ball_spd_now <= max_forward_spd + 0.1, "La velocidad no debe exceder max_forward_spd")
+	assert(ball_spd_now > 2.0, "El balón debe acelerar de inmediato para adelantarse a los pies")
+	print("  -> Recogida desde atrás: is_dribbling=true, aceleración hacia el frente (%.2f m/s <= %.2f m/s) OK" % [ball_spd_now, max_forward_spd])
+
 	ball.queue_free()
 	player.queue_free()
 

@@ -112,12 +112,25 @@ func _init():
 	print("  -> 1er Duelo: Tarjeta Amarilla, disciplina descontada y rival aturdido 7.0s: OK")
 
 	# 3.2 Segundo duelo: Tarjeta Roja y finalización por descalificación
-	player._on_brawl_finished(true, null, opponent)
+	# Instanciar un Fighter2D en grupo player para validar explícitamente que no se asigne Vector3
+	var fighter_script = load("res://scripts/Fighter.gd")
+	var mock_fighter = KinematicBody2D.new()
+	mock_fighter.name = "Fighter"
+	mock_fighter.set_script(fighter_script)
+	mock_fighter.add_to_group("player")
+	mock_fighter.velocity = Vector2(12.0, -5.0)
+	var mock_overlay = CanvasLayer.new()
+	mock_overlay.name = "BrawlOverlayLayer"
+	mock_overlay.add_child(mock_fighter)
+	root.add_child(mock_overlay)
+
+	player._on_brawl_finished(true, mock_overlay, opponent)
 	assert(player.pitch_brawls_count == 2, "pitch_brawls_count debe ser 2 tras el 2do duelo")
 	var stats_after_2 = root.get_meta("gtp_stats")
 	assert(stats_after_2["league_losses"] >= 1, "El 2do duelo debe registrar derrota por descalificación")
 	assert(hud.match_finished == true, "El partido debe terminar tras la Tarjeta Roja")
-	print("  -> 2do Duelo: Tarjeta Roja, expulsión y derrota registrada en liga: OK")
+	assert(typeof(mock_fighter.velocity) == TYPE_VECTOR2, "Fighter2D debe conservar velocity de tipo Vector2 sin error Vector3")
+	print("  -> 2do Duelo: Tarjeta Roja, expulsión y descalificación sin crash Vector3 en Fighter2D: OK")
 
 	# --------------------------------------------------------------------------
 	# PARTE 4: Ciclo de Jornadas de Liga y Guardado en user://savegame.json
