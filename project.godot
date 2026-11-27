@@ -57,6 +57,7 @@ config/icon="res://icon.png"
 [autoload]
 
 GameSettings="*res://scripts/autoload/GameSettings.gd"
+SettingsOverlay="*res://scenes/SettingsMenu.tscn"
 
 [gui]
 

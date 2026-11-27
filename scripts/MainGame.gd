@@ -14,9 +14,9 @@ onready var third_academy_button = $MarginContainer/VBoxContainer/ActionVBox/Thi
 onready var bottom_bar = $MarginContainer/VBoxContainer/BottomBar
 onready var match_button = $MarginContainer/VBoxContainer/BottomBar/MatchButton
 onready var fight_button = $MarginContainer/VBoxContainer/BottomBar/FightButton
-onready var controls_button = $MarginContainer/VBoxContainer/BottomBar/ControlsButton
 onready var admin_button = $MarginContainer/VBoxContainer/BottomBar/AdminButton
 onready var reset_button = $MarginContainer/VBoxContainer/BottomBar/ResetButton
+onready var config_button = $ConfigButton if has_node("ConfigButton") else null
 
 var story_manager = null
 var admin_panel = null
@@ -49,12 +49,13 @@ func _ready() -> void:
 		match_button.connect("pressed", self, "_on_match_pressed")
 	if fight_button:
 		fight_button.connect("pressed", self, "_on_fight_pressed")
-	if controls_button:
-		controls_button.connect("pressed", self, "_on_controls_pressed")
 	if admin_button:
 		admin_button.connect("pressed", self, "_on_admin_pressed")
 	if reset_button:
 		reset_button.connect("pressed", self, "_on_reset_pressed")
+	if config_button:
+		config_button.connect("pressed", self, "_on_config_pressed")
+		config_button.text = "⚙ Config"
 
 	_sync_from_save_file()
 	_setup_story_manager()
@@ -62,8 +63,13 @@ func _ready() -> void:
 	update_ui()
 
 func _input(event) -> void:
-	if event is InputEventKey and event.pressed and event.scancode == KEY_F12:
-		_toggle_admin_panel()
+	if event is InputEventKey and event.pressed:
+		if event.scancode == KEY_F12:
+			_toggle_admin_panel()
+		elif event.scancode == KEY_ESCAPE:
+			var so = get_node_or_null("/root/SettingsOverlay")
+			if so and not so.is_open():
+				_on_config_pressed()
 
 func _setup_admin_panel() -> void:
 	var admin_script = load("res://scripts/AdminStoryTree.gd")
@@ -249,8 +255,7 @@ func update_ui() -> void:
 			right_button.visible = true
 			right_button.text = "Aceptar pelea clandestina (+20 Reputación, +$500, +5 Combate)"
 
-	_show_bottom_bar(true, matchday <= 8, true, true, true, true)
-	_update_controls_button_text()
+	_show_bottom_bar(true, matchday <= 8, true, false, true, true)
 	_setup_focus()
 
 # --- Pantallas del Flujo Narrativo ---
@@ -397,7 +402,7 @@ func _show_final_brawl_screen(_gs, _meta_stats: Dictionary) -> void:
 	_show_bottom_bar(true, false, false, false, true, false)
 	_setup_focus()
 
-func _show_bottom_bar(show_bar: bool, show_match: bool, show_fight: bool, show_ctrl: bool, show_admin: bool, show_reset: bool) -> void:
+func _show_bottom_bar(show_bar: bool, show_match: bool, show_fight: bool, _show_ctrl: bool, show_admin: bool, show_reset: bool) -> void:
 	if bottom_bar:
 		bottom_bar.visible = show_bar
 	if match_button:
@@ -406,14 +411,14 @@ func _show_bottom_bar(show_bar: bool, show_match: bool, show_fight: bool, show_c
 	if fight_button:
 		fight_button.visible = show_fight
 		fight_button.text = "Pelea Callejera"
-	if controls_button:
-		controls_button.visible = show_ctrl
 	if admin_button:
 		admin_button.visible = show_admin
 		admin_button.text = "ADMIN (F12)"
 	if reset_button:
 		reset_button.visible = show_reset
 		reset_button.text = "Nueva Carrera"
+	if config_button:
+		config_button.text = "⚙ Config"
 
 func _get_persistent_stats() -> Dictionary:
 	if not get_tree().root.has_meta("gtp_stats"):
@@ -536,15 +541,13 @@ func _on_match_pressed() -> void:
 func _on_fight_pressed() -> void:
 	get_tree().change_scene("res://scenes/FightArena.tscn")
 
-func _on_controls_pressed() -> void:
-	var gs = get_node_or_null("/root/GameSettings")
-	if gs and gs.has_method("toggle_control_scheme"):
-		gs.toggle_control_scheme()
-		_save_current_state()
-	_update_controls_button_text()
-
 func _on_admin_pressed() -> void:
 	_toggle_admin_panel()
+
+func _on_config_pressed() -> void:
+	var so = get_node_or_null("/root/SettingsOverlay")
+	if so and so.has_method("open_menu"):
+		so.open_menu()
 
 func _on_reset_pressed() -> void:
 	var gs = get_node_or_null("/root/GameSettings")
@@ -570,17 +573,9 @@ func _on_reset_pressed() -> void:
 		_setup_story_manager()
 	update_ui()
 
-func _update_controls_button_text() -> void:
-	if controls_button:
-		var scheme_str = "Clásico"
-		var gs = get_node_or_null("/root/GameSettings")
-		if gs and gs.has_method("get_scheme_short_name"):
-			scheme_str = gs.get_scheme_short_name()
-		controls_button.text = "Controles: " + scheme_str
-
 func _setup_focus() -> void:
 	var active_buttons = []
-	for btn in [left_button, right_button, third_academy_button, match_button, fight_button, controls_button, admin_button, reset_button]:
+	for btn in [left_button, right_button, third_academy_button, match_button, fight_button, admin_button, reset_button, config_button]:
 		if btn and btn.visible:
 			active_buttons.append(btn)
 

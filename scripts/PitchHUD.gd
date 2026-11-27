@@ -128,6 +128,11 @@ func show_duel_result(msg: String, is_player_win: bool = true) -> void:
 	goal_notice_label.visible = false
 	if pause_panel:
 		pause_panel.visible = false
+		_ensure_pause_config_button()
+
+	var so = get_node_or_null("/root/SettingsOverlay")
+	if so and so.has_signal("settings_closed") and not so.is_connected("settings_closed", self, "_update_controls_hint"):
+		so.connect("settings_closed", self, "_update_controls_hint")
 
 	_update_tactic_display()
 	_update_clock_and_hud()
@@ -256,6 +261,34 @@ func show_tactical_notice(msg: String) -> void:
 		if goal_notice_label and goal_notice_label.text == msg and not match_finished:
 			goal_notice_label.visible = false
 
+func _ensure_pause_config_button() -> void:
+	if not pause_panel:
+		return
+	if pause_panel.has_node("PauseConfigButton") or pause_panel.has_node("VBox/PauseConfigButton") or pause_panel.has_node("VBoxContainer/PauseConfigButton"):
+		return
+	var target_container = pause_panel.get_node_or_null("VBox")
+	if not target_container:
+		target_container = pause_panel.get_node_or_null("VBoxContainer")
+	if not target_container:
+		for child in pause_panel.get_children():
+			if child is VBoxContainer:
+				target_container = child
+				break
+	var btn = Button.new()
+	btn.name = "PauseConfigButton"
+	btn.text = "⚙ Configuración"
+	btn.rect_min_size = Vector2(180, 36)
+	btn.connect("pressed", self, "_on_pause_config_pressed")
+	if target_container:
+		target_container.add_child(btn)
+	else:
+		pause_panel.add_child(btn)
+
+func _on_pause_config_pressed() -> void:
+	var so = get_node_or_null("/root/SettingsOverlay")
+	if so and so.has_method("open_menu"):
+		so.open_menu()
+
 func _toggle_pause() -> void:
 	if match_finished:
 		return
@@ -263,6 +296,10 @@ func _toggle_pause() -> void:
 	get_tree().paused = new_pause
 	if pause_panel:
 		pause_panel.visible = new_pause
+		if new_pause:
+			var cfg_btn = pause_panel.find_node("PauseConfigButton", true, false)
+			if cfg_btn:
+				cfg_btn.grab_focus()
 	print("[PitchHUD] START presionado -> Partida ", "PAUSADA" if new_pause else "REANUDADA")
 
 func _cycle_tactic() -> void:

@@ -3,6 +3,7 @@ extends Control
 onready var start_button = $CenterContainer/CardPanel/MarginContainer/VBoxContainer/StartButton
 onready var continue_button = $CenterContainer/CardPanel/MarginContainer/VBoxContainer/ContinueButton
 onready var admin_button = $CenterContainer/CardPanel/MarginContainer/VBoxContainer/AdminButton
+onready var config_button = $ConfigButton if has_node("ConfigButton") else null
 
 var admin_overlay = null
 
@@ -13,14 +14,21 @@ func _ready() -> void:
 		continue_button.connect("pressed", self, "_on_ContinueButton_pressed")
 	if admin_button:
 		admin_button.connect("pressed", self, "_on_AdminButton_pressed")
+	if config_button:
+		config_button.connect("pressed", self, "_on_ConfigButton_pressed")
 
 	_refresh_continue_state()
 	_setup_admin_overlay()
 	_setup_focus()
 
 func _input(event) -> void:
-	if event is InputEventKey and event.pressed and event.scancode == KEY_F12:
-		_toggle_admin_overlay()
+	if event is InputEventKey and event.pressed:
+		if event.scancode == KEY_F12:
+			_toggle_admin_overlay()
+		elif event.scancode == KEY_ESCAPE:
+			var so = get_node_or_null("/root/SettingsOverlay")
+			if so and not so.is_open():
+				_on_ConfigButton_pressed()
 
 func _refresh_continue_state() -> void:
 	var gs = get_node_or_null("/root/GameSettings")
@@ -73,6 +81,11 @@ func _on_ContinueButton_pressed() -> void:
 
 func _on_AdminButton_pressed() -> void:
 	_toggle_admin_overlay()
+
+func _on_ConfigButton_pressed() -> void:
+	var so = get_node_or_null("/root/SettingsOverlay")
+	if so and so.has_method("open_menu"):
+		so.open_menu()
 
 func update_ui() -> void:
 	_refresh_continue_state()

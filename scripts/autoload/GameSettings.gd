@@ -14,6 +14,11 @@ enum ControllerType {
 var current_control_scheme: int = ControlScheme.FIFA_CLASSIC
 var _simulated_joy_name: String = ""
 
+# --- Configuración de Audio y Pantalla ---
+var music_volume: float = 0.8
+var sfx_volume: float = 0.9
+var fullscreen_enabled: bool = false
+
 # Base de datos de mapeos SDL para mandos Sony DualShock 4 y DualSense en Windows
 const SDL_PLAYSTATION_MAPPINGS = [
 	# DualShock 4 USB v1 (054c:05c4)
@@ -80,6 +85,7 @@ func _ready() -> void:
 	Input.connect("joy_connection_changed", self, "_on_joy_connection_changed")
 	update_controller_support(0)
 	load_progress()
+	apply_audio_and_display_settings()
 
 # --- Persistencia y Guardado de Ciclo de Liga (user://savegame.json) ---
 
@@ -97,6 +103,9 @@ func get_default_save_data() -> Dictionary:
 		"money": 0,
 		"reputation": 0,
 		"control_scheme": current_control_scheme,
+		"music_volume": 0.8,
+		"sfx_volume": 0.9,
+		"fullscreen_enabled": false,
 		"story_phase": "LEAGUE",
 		"ending_id": "",
 		"red_cards_total": 0,
@@ -126,6 +135,12 @@ func load_progress() -> Dictionary:
 	var data: Dictionary = _read_save_dict()
 	if data.has("control_scheme"):
 		current_control_scheme = int(data["control_scheme"])
+	if data.has("music_volume"):
+		music_volume = clamp(float(data["music_volume"]), 0.0, 1.0)
+	if data.has("sfx_volume"):
+		sfx_volume = clamp(float(data["sfx_volume"]), 0.0, 1.0)
+	if data.has("fullscreen_enabled"):
+		fullscreen_enabled = bool(data["fullscreen_enabled"])
 	# Sincronizar variables narrativas desde el guardado
 	if data.has("story_phase"):
 		story_phase = str(data["story_phase"])
@@ -149,6 +164,10 @@ func save_progress(new_fields: Dictionary = {}) -> bool:
 		data[k] = new_fields[k]
 	if not data.has("control_scheme"):
 		data["control_scheme"] = current_control_scheme
+	data["control_scheme"] = current_control_scheme
+	data["music_volume"] = music_volume
+	data["sfx_volume"] = sfx_volume
+	data["fullscreen_enabled"] = fullscreen_enabled
 	# Siempre persistir el estado narrativo actual
 	data["story_phase"] = story_phase
 	data["ending_id"] = ending_id
@@ -342,6 +361,20 @@ func get_scheme_short_name() -> String:
 	if current_control_scheme == ControlScheme.PES_ALTERNATIVE:
 		return "Alternativo (PES)"
 	return "Clásico (FIFA)"
+
+func apply_audio_and_display_settings() -> void:
+	_apply_bus_volume("Music", music_volume)
+	_apply_bus_volume("SFX", sfx_volume)
+	OS.window_fullscreen = fullscreen_enabled
+
+func _apply_bus_volume(bus_name: String, vol: float) -> void:
+	var idx = AudioServer.get_bus_index(bus_name)
+	if idx == -1:
+		idx = AudioServer.get_bus_index("Master")
+	if idx != -1:
+		var clamped = clamp(vol, 0.0, 1.0)
+		AudioServer.set_bus_mute(idx, clamped <= 0.01)
+		AudioServer.set_bus_volume_db(idx, linear2db(max(clamped, 0.0001)))
 
 # --- Soporte y Detección de Mandos PlayStation (PS4 / PS5) en Windows ---
 
