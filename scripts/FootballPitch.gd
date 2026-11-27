@@ -132,35 +132,35 @@ func apply_formations() -> void:
 	set_rival_formation(rival_formations[current_rival_formation_idx])
 
 func apply_ally_formation_4213() -> void:
-	# 1. Ryu como ST en tridente ofensivo
+	# 1. Ryu como ST en tridente ofensivo (punto de saque, Z = 0.6)
 	var players = get_tree().get_nodes_in_group("player")
 	for p in players:
 		if p is Spatial:
 			p.set("tactical_slot", "ST")
-			p.set("home_position", Vector3(0.0, 0.8, -3.5))
-			p.set("initial_position", Vector3(0.0, 0.8, -3.5))
-			p.global_transform.origin = Vector3(0.0, 0.8, -3.5)
+			p.set("home_position", Vector3(0.0, 0.8, 0.6))
+			p.set("initial_position", Vector3(0.0, 0.8, 0.6))
+			p.global_transform.origin = Vector3(0.0, 0.8, 0.6)
 
-	# 2. Portero Aliado en Sur (Z = 26.5)
+	# 2. Portero Aliado en Sur (Z = +26.8, X = 0.0 — centrado sobre la línea de meta)
 	for gk in get_tree().get_nodes_in_group("goalkeepers"):
 		if "is_player_team" in gk and gk.is_player_team:
 			gk.tactical_slot = "GK"
-			gk.home_position = Vector3(0.0, 0.8, 26.5)
-			gk.initial_position = Vector3(0.0, 0.8, 26.5)
+			gk.home_position = Vector3(0.0, 0.8, 26.8)
+			gk.initial_position = Vector3(0.0, 0.8, 26.8)
 			gk.formation_name = "4-2-1-3"
-			gk.global_transform.origin = Vector3(0.0, 0.8, 26.5)
+			gk.global_transform.origin = Vector3(0.0, 0.8, 26.8)
 
-	# 3. 9 Compañeros IA en 4-2-1-3
+	# 3. 9 Compañeros IA en 4-2-1-3 (todos en campo Sur, Z >= 0.0)
 	var slots = [
-		{"slot": "LB", "pos": Vector3(-13.0, 0.8, 19.0)},
-		{"slot": "LCB", "pos": Vector3(-4.5, 0.8, 20.0)},
-		{"slot": "RCB", "pos": Vector3(4.5, 0.8, 20.0)},
-		{"slot": "RB", "pos": Vector3(13.0, 0.8, 19.0)},
-		{"slot": "LDM", "pos": Vector3(-5.0, 0.8, 12.0)},
-		{"slot": "RDM", "pos": Vector3(5.0, 0.8, 12.0)},
-		{"slot": "CAM", "pos": Vector3(0.0, 0.8, 6.0)},
-		{"slot": "LW", "pos": Vector3(-12.0, 0.8, -3.0)},
-		{"slot": "RW", "pos": Vector3(12.0, 0.8, -3.0)}
+		{"slot": "LB", "pos": Vector3(-13.0, 0.8, 19.5)},
+		{"slot": "LCB", "pos": Vector3(-4.8, 0.8, 20.5)},
+		{"slot": "RCB", "pos": Vector3(4.8, 0.8, 20.5)},
+		{"slot": "RB", "pos": Vector3(13.0, 0.8, 19.5)},
+		{"slot": "LDM", "pos": Vector3(-5.2, 0.8, 12.5)},
+		{"slot": "RDM", "pos": Vector3(5.2, 0.8, 12.5)},
+		{"slot": "CAM", "pos": Vector3(0.0, 0.8, 6.5)},
+		{"slot": "LW", "pos": Vector3(-12.5, 0.8, 2.0)},
+		{"slot": "RW", "pos": Vector3(12.5, 0.8, 2.0)}
 	]
 	var teammates = get_tree().get_nodes_in_group("teammates")
 	for i in range(min(teammates.size(), slots.size())):
@@ -177,15 +177,16 @@ func set_rival_formation(form_name: String) -> void:
 	if current_rival_formation_idx == -1:
 		current_rival_formation_idx = 0
 
-	# Portero Rival en Norte (Z = -26.5)
+	# Portero Rival en Norte (Z = -26.8, X = 0.0 — centrado sobre la línea de meta)
 	for gk in get_tree().get_nodes_in_group("goalkeepers"):
 		if "is_player_team" in gk and not gk.is_player_team:
 			gk.tactical_slot = "GK"
-			gk.home_position = Vector3(0.0, 0.8, -26.5)
-			gk.initial_position = Vector3(0.0, 0.8, -26.5)
+			gk.home_position = Vector3(0.0, 0.8, -26.8)
+			gk.initial_position = Vector3(0.0, 0.8, -26.8)
 			gk.formation_name = form_name
-			gk.global_transform.origin = Vector3(0.0, 0.8, -26.5)
+			gk.global_transform.origin = Vector3(0.0, 0.8, -26.8)
 
+	# Todas las posiciones rivales en campo Norte (Z <= -1.5) para respetar saque inicial
 	var formation_slots = {
 		"4-4-2": [
 			{"slot": "LB", "pos": Vector3(-13.0, 0.8, -19.0)},
@@ -207,9 +208,9 @@ func set_rival_formation(form_name: String) -> void:
 			{"slot": "RWB", "pos": Vector3(14.0, 0.8, -17.0)},
 			{"slot": "LCM", "pos": Vector3(-4.5, 0.8, -10.0)},
 			{"slot": "RCM", "pos": Vector3(4.5, 0.8, -10.0)},
-			{"slot": "LW", "pos": Vector3(-12.0, 0.8, -3.0)},
-			{"slot": "ST", "pos": Vector3(0.0, 0.8, -3.5)},
-			{"slot": "RW", "pos": Vector3(12.0, 0.8, -3.0)}
+			{"slot": "LW", "pos": Vector3(-12.0, 0.8, -3.5)},
+			{"slot": "ST", "pos": Vector3(0.0, 0.8, -4.0)},
+			{"slot": "RW", "pos": Vector3(12.0, 0.8, -3.5)}
 		],
 		"4-3-3": [
 			{"slot": "LB", "pos": Vector3(-13.0, 0.8, -19.0)},
@@ -219,9 +220,9 @@ func set_rival_formation(form_name: String) -> void:
 			{"slot": "LCM", "pos": Vector3(-6.0, 0.8, -10.0)},
 			{"slot": "CM", "pos": Vector3(0.0, 0.8, -11.5)},
 			{"slot": "RCM", "pos": Vector3(6.0, 0.8, -10.0)},
-			{"slot": "LW", "pos": Vector3(-12.0, 0.8, -3.0)},
-			{"slot": "ST", "pos": Vector3(0.0, 0.8, -3.5)},
-			{"slot": "RW", "pos": Vector3(12.0, 0.8, -3.0)}
+			{"slot": "LW", "pos": Vector3(-12.0, 0.8, -3.5)},
+			{"slot": "ST", "pos": Vector3(0.0, 0.8, -4.0)},
+			{"slot": "RW", "pos": Vector3(12.0, 0.8, -3.5)}
 		],
 		"5-3-2": [
 			{"slot": "LWB", "pos": Vector3(-14.0, 0.8, -17.0)},

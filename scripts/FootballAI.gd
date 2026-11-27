@@ -8,10 +8,10 @@ export(bool) var is_player_team: bool = false
 export(String) var tactical_slot: String = ""
 export(Vector3) var home_position: Vector3 = Vector3.ZERO
 export(String) var formation_name: String = ""
-# Velocidades equilibradas y dinámicas
-export(float) var move_speed: float = 7.4
-export(float) var sprint_speed: float = 10.4
-export(float) var dribble_speed: float = 7.0
+# Velocidades equilibradas — ritmo pausado para destacar al Canterano Ryu
+export(float) var move_speed: float = 4.6
+export(float) var sprint_speed: float = 6.3
+export(float) var dribble_speed: float = 4.4
 export(float) var kick_reach: float = 1.6
 # Estamina y IA
 export(bool) var enable_stamina_fatigue: bool = true
@@ -20,7 +20,7 @@ export(float) var max_stamina: float = 100.0
 var is_exhausted: bool = false
 var stun_timer: float = 0.0
 var ai_decision_timer: float = 0.0
-var separation_radius: float = 3.5
+var separation_radius: float = 4.5
 
 # Variables de prueba en cancha (Frenar / Pausar)
 export(bool) var is_frozen_for_test: bool = false
@@ -79,9 +79,9 @@ func _ready() -> void:
 			matchday = int(s.get("matchday", 1))
 
 		var scale_factor: float = clamp(float(matchday - 1) * 0.035, 0.0, 0.35)
-		move_speed = 7.4 * (1.0 + scale_factor)
-		sprint_speed = 10.4 * (1.0 + scale_factor)
-		dribble_speed = 7.0 * (1.0 + scale_factor * 0.5)
+		move_speed = 4.6 * (1.0 + scale_factor)
+		sprint_speed = 6.3 * (1.0 + scale_factor)
+		dribble_speed = 4.4 * (1.0 + scale_factor * 0.5)
 
 	initial_facing = facing_direction
 
@@ -277,7 +277,7 @@ func _physics_process(delta: float) -> void:
 	if translation.distance_squared_to(target_look) > 0.001:
 		look_at(target_look, Vector3.UP)
 
-	# Separación entre compañeros del mismo equipo
+	# Separación entre compañeros del mismo equipo (radio 4.5 m, repulsión lateral clara)
 	var team_group = "teammates" if is_player_team else "opponents"
 	var allies = get_tree().get_nodes_in_group(team_group)
 	for ally in allies:
@@ -288,7 +288,7 @@ func _physics_process(delta: float) -> void:
 		var diff = global_transform.origin - ally.global_transform.origin
 		var dist = diff.length()
 		if dist < separation_radius and dist > 0.001:
-			var push = diff.normalized() * (separation_radius - dist) * 0.5
+			var push = diff.normalized() * (separation_radius - dist) * 0.8
 			translation += push * delta
 
 # -------------------------------------------------------------------------
@@ -302,19 +302,24 @@ func _process_goalkeeper(_delta: float, decision_ready: bool = true) -> void:
 	var ball_pos: Vector3 = ball_ref.global_transform.origin
 	var my_pos: Vector3 = global_transform.origin
 
-	# Movimiento lateral en X dentro de los postes
-	var target_x: float = clamp(ball_pos.x, -3.8, 3.8)
+	# Movimiento lateral en X estrictamente dentro de los postes (±3.6 m)
+	var target_x: float = clamp(ball_pos.x, -3.6, 3.6)
 	var diff_x: float = target_x - my_pos.x
 	if abs(diff_x) > 0.08:
 		target_velocity.x = sign(diff_x) * min(abs(diff_x) * 6.0, move_speed)
 	else:
 		target_velocity.x = 0.0
 
-	# Posición Z fija en la línea de gol (±26.5)
+	# Posición Z fija anclada a la línea de meta (±26.8)
 	var target_z: float = home_position.z if home_position != Vector3.ZERO else initial_position.z
 	var diff_z: float = target_z - my_pos.z
 	target_velocity.z = diff_z * 4.0
 	target_velocity.y = 0.0
+
+	# Forzar X dentro de postes y Z anclado a home_position.z cada frame
+	translation.x = clamp(translation.x, -3.6, 3.6)
+	if home_position != Vector3.ZERO:
+		translation.z = home_position.z
 
 	# Detección de parada / despeje
 	if decision_ready:
@@ -366,7 +371,7 @@ func _process_opponent(_delta: float, decision_ready: bool = true) -> void:
 
 	# Si otro rival ya tiene el balón, mantener formación táctica y apoyar ataque hacia Sur
 	if carrier != null and carrier != self and carrier_is_player == is_player_team:
-		var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(3.5)
+		var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(4.5)
 		var to_target = target_pos - my_pos
 		to_target.y = 0.0
 		var dist_tac = to_target.length()
@@ -394,13 +399,13 @@ func _process_opponent(_delta: float, decision_ready: bool = true) -> void:
 			ball_ref.apply_central_impulse(shot_impulse)
 			has_ball = false
 			is_dribbling = false
-			kick_cooldown = 0.6
+			kick_cooldown = 2.2
 			possession_cooldown = 1.0
 			print("[AI Opponent] ¡Rival remata con fuerza hacia la portería Sur!")
 	else:
-		# Sin balón: solo los 2 rivales más cercanos al balón presionan activamente
+		# Sin balón: solo el 1 rival más cercano al balón presiona activamente
 		var dist_to_ball = my_pos.distance_to(ball_pos)
-		var is_presser = _is_among_closest_to_ball(2)
+		var is_presser = _is_among_closest_to_ball(1)
 
 		if is_presser or dist_to_ball <= 3.5:
 			var target_dest = ball_pos
@@ -437,8 +442,8 @@ func _process_opponent(_delta: float, decision_ready: bool = true) -> void:
 				is_dribbling = true
 				print("[AI Opponent] ¡Rival captura el balón suelto!")
 		else:
-			# Mantener línea táctica y separación mínima de 3.5 m
-			var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(3.5)
+			# Mantener línea táctica y separación mínima de 4.5 m
+			var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(4.5)
 			var to_target = target_pos - my_pos
 			to_target.y = 0.0
 			var dist_tac = to_target.length()
@@ -506,7 +511,7 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 
 	# Si Ryu u otro compañero tiene el balón, abrir líneas de pase con posicionamiento táctico
 	if carrier != null and carrier != self and carrier_is_player == is_player_team:
-		var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(3.5)
+		var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(4.5)
 		var to_target = target_pos - my_pos
 		to_target.y = 0.0
 		var dist_tac = to_target.length()
@@ -534,13 +539,13 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 			ball_ref.apply_central_impulse(shot_impulse)
 			has_ball = false
 			is_dribbling = false
-			kick_cooldown = 0.6
+			kick_cooldown = 2.2
 			possession_cooldown = 1.0
 			print("[AI Teammate] ¡Compañero remata con potencia a portería rival!")
 	else:
-		# Sin balón: solo los 2 compañeros más cercanos van a presionar o buscar balón suelto
+		# Sin balón: solo el 1 compañero más cercano va a presionar o buscar balón suelto
 		var dist_ball = my_pos.distance_to(ball_pos)
-		var is_presser = _is_among_closest_to_ball(2)
+		var is_presser = _is_among_closest_to_ball(1)
 
 		if is_presser or dist_ball <= 3.5:
 			var to_ball = ball_pos - my_pos
@@ -559,8 +564,8 @@ func _process_teammate(_delta: float, decision_ready: bool = true) -> void:
 				is_dribbling = true
 				print("[AI Teammate] ¡Compañero aliado controla el balón!")
 		else:
-			# Mantener línea táctica y separación mínima de 3.5 m
-			var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(3.5)
+			# Mantener línea táctica y separación mínima de 4.5 m
+			var target_pos = _get_tactical_home_pos(ball_pos) + _get_separation_vector(4.5)
 			var to_tac = target_pos - my_pos
 			to_tac.y = 0.0
 			if to_tac.length() > 0.4:
@@ -635,7 +640,7 @@ func _get_tactical_home_pos(ball_pos: Vector3) -> Vector3:
 
 	var target = base_pos + Vector3(shift_x, 0.0, shift_z)
 	target.x = clamp(target.x, -18.0, 18.0)
-	target.z = clamp(target.z, -26.5, 26.5)
+	target.z = clamp(target.z, -26.8, 26.8)
 	target.y = 0.8
 	return target
 

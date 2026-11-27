@@ -126,7 +126,7 @@ func _reset_all_actors() -> void:
 			elif p.has_method("get") and p.get("initial_position") != null:
 				p.global_transform.origin = p.initial_position
 			else:
-				p.global_transform.origin = Vector3(0.0, 0.8, -3.5)
+				p.global_transform.origin = Vector3(0.0, 0.8, 0.6)
 			if "velocity" in p:
 				p.velocity = Vector3.ZERO
 		print("[GoalArea] Jugador principal reposicionado tras gol.")

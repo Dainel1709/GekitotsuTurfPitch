@@ -20,7 +20,7 @@ var fury: float = 0.0 setget set_fury, get_fury
 var max_fury: float = 100.0
 
 export(String) var tactical_slot: String = "ST"
-export(Vector3) var home_position: Vector3 = Vector3(0.0, 0.8, -3.5)
+export(Vector3) var home_position: Vector3 = Vector3(0.0, 0.8, 0.6)
 
 # Configuración de Disparo y Balón
 export var fallback_base_kick_force: float = 16.0
