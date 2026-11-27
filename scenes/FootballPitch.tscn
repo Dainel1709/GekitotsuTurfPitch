@@ -65,7 +65,7 @@ roughness = 0.2
 size = Vector3( 9.16, 0.16, 0.16 )
 
 [sub_resource type="CubeMesh" id=27]
-size = Vector2( 100, 3.5, 1.2 )
+size = Vector3( 100, 3.5, 1.2 )
 
 [sub_resource type="SpatialMaterial" id=28]
 albedo_color = Color( 0.55, 0.55, 0.52, 1 )
