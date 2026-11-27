@@ -7,10 +7,12 @@ onready var league_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargi
 onready var balance_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/BalanceLabel
 onready var description_label = $MarginContainer/VBoxContainer/StoryCard/StoryMargin/DescriptionLabel
 
+onready var action_vbox = $MarginContainer/VBoxContainer/ActionVBox
 onready var player_name_input = $MarginContainer/VBoxContainer/ActionVBox/PlayerNameInput
-onready var left_button = $MarginContainer/VBoxContainer/ActionVBox/LeftButton
-onready var right_button = $MarginContainer/VBoxContainer/ActionVBox/RightButton
-onready var third_academy_button = $MarginContainer/VBoxContainer/ActionVBox/ThirdAcademyButton
+onready var choices_hbox = $MarginContainer/VBoxContainer/ActionVBox/ChoicesHBox
+onready var left_button = $MarginContainer/VBoxContainer/ActionVBox/ChoicesHBox/LeftButton
+onready var right_button = $MarginContainer/VBoxContainer/ActionVBox/ChoicesHBox/RightButton
+onready var third_academy_button = $MarginContainer/VBoxContainer/ActionVBox/ChoicesHBox/ThirdAcademyButton
 
 onready var bottom_bar = $MarginContainer/VBoxContainer/BottomBar
 onready var match_button = $MarginContainer/VBoxContainer/BottomBar/MatchButton
@@ -313,14 +315,14 @@ func _set_choice_button_logo(btn, club_name: String) -> void:
 	var tex = _load_academy_logo(club_name)
 	btn.icon = tex
 	btn.expand_icon = tex != null
-	btn.rect_min_size.y = 48
+	btn.rect_min_size = Vector2(220, 120)
 
 func _clear_choice_button_logos() -> void:
 	for btn in [left_button, right_button, third_academy_button]:
 		if btn:
 			btn.icon = null
 			btn.expand_icon = false
-			btn.rect_min_size.y = 40
+			btn.rect_min_size = Vector2(0, 40)
 
 func _show_select_academy_screen(gs) -> void:
 	var pname = gs.player_name if gs else "Ryu"
@@ -615,6 +617,8 @@ func _setup_focus() -> void:
 		var btn = active_buttons[i]
 		btn.focus_neighbour_top = active_buttons[(i - 1 + count) % count].get_path()
 		btn.focus_neighbour_bottom = active_buttons[(i + 1) % count].get_path()
+		btn.focus_neighbour_left = active_buttons[(i - 1 + count) % count].get_path()
+		btn.focus_neighbour_right = active_buttons[(i + 1) % count].get_path()
 
 	if count > 0:
 		var has_any_focus = false
