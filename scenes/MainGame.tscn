@@ -1,6 +1,7 @@
-[gd_scene load_steps=6 format=2]
+[gd_scene load_steps=7 format=2]
 
 [ext_resource path="res://scripts/MainGame.gd" type="Script" id=1]
+[ext_resource path="res://assets/videos/prologue_alley_ball.ogv" type="VideoStream" id=2]
 
 [sub_resource type="StyleBoxFlat" id=1]
 bg_color = Color( 0.075, 0.106, 0.149, 0.94 )
@@ -14,17 +15,17 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[sub_resource type="StyleBoxFlat" id=2]
-bg_color = Color( 0.075, 0.106, 0.149, 0.95 )
+[sub_resource type="StyleBoxFlat" id=4]
+bg_color = Color( 0.105, 0.149, 0.212, 0.96 )
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color( 0.165, 0.247, 0.349, 0.75 )
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+border_color = Color( 0.28, 0.45, 0.65, 0.95 )
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id=3]
 bg_color = Color( 0.075, 0.106, 0.149, 0.92 )
@@ -38,17 +39,17 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id=4]
-bg_color = Color( 0.105, 0.149, 0.212, 0.96 )
+[sub_resource type="StyleBoxFlat" id=2]
+bg_color = Color( 0.075, 0.106, 0.149, 0.95 )
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color( 0.28, 0.45, 0.65, 0.95 )
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+border_color = Color( 0.165, 0.247, 0.349, 0.75 )
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="MainGame" type="Control"]
 anchor_right = 1.0
@@ -59,6 +60,13 @@ script = ExtResource( 1 )
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color( 0.04, 0.05, 0.08, 1 )
+
+[node name="PrologueVideoPlayer" type="VideoPlayer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+stream = ExtResource( 2 )
+autoplay = true
+expand = true
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 anchor_right = 1.0
@@ -78,14 +86,14 @@ alignment = 1
 
 [node name="HeaderCard" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
 margin_right = 944.0
-margin_bottom = 114.0
+margin_bottom = 120.0
 custom_styles/panel = SubResource( 1 )
 
 [node name="HeaderMargin" type="MarginContainer" parent="MarginContainer/VBoxContainer/HeaderCard"]
 margin_left = 1.0
 margin_top = 1.0
 margin_right = 943.0
-margin_bottom = 113.0
+margin_bottom = 119.0
 custom_constants/margin_right = 16
 custom_constants/margin_top = 12
 custom_constants/margin_left = 16
@@ -95,7 +103,7 @@ custom_constants/margin_bottom = 12
 margin_left = 16.0
 margin_top = 12.0
 margin_right = 926.0
-margin_bottom = 100.0
+margin_bottom = 106.0
 custom_constants/separation = 6
 
 [node name="HeaderTopRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox"]
@@ -111,6 +119,9 @@ margin_bottom = 22.0
 rect_min_size = Vector2( 0, 16 )
 size_flags_horizontal = 3
 custom_colors/font_color = Color( 1, 0.9, 0.35, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 0.85 )
+custom_constants/shadow_offset_x = 1
+custom_constants/shadow_offset_y = 2
 align = 1
 valign = 1
 
@@ -125,36 +136,45 @@ custom_styles/focus = SubResource( 4 )
 custom_styles/normal = SubResource( 3 )
 
 [node name="StatsLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox"]
-margin_top = 22.0
+margin_top = 34.0
 margin_right = 910.0
-margin_bottom = 38.0
+margin_bottom = 50.0
 rect_min_size = Vector2( 0, 16 )
 custom_colors/font_color = Color( 0.9, 0.93, 0.98, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 0.85 )
+custom_constants/shadow_offset_x = 1
+custom_constants/shadow_offset_y = 2
 align = 1
 valign = 1
 
 [node name="LeagueLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox"]
-margin_top = 44.0
+margin_top = 56.0
 margin_right = 910.0
-margin_bottom = 60.0
+margin_bottom = 72.0
 rect_min_size = Vector2( 0, 16 )
 custom_colors/font_color = Color( 0.25, 0.88, 1, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 0.85 )
+custom_constants/shadow_offset_x = 1
+custom_constants/shadow_offset_y = 2
 align = 1
 valign = 1
 
 [node name="BalanceLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox"]
-margin_top = 66.0
+margin_top = 78.0
 margin_right = 910.0
-margin_bottom = 82.0
+margin_bottom = 94.0
 rect_min_size = Vector2( 0, 16 )
 custom_colors/font_color = Color( 1, 0.85, 0.2, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 0.85 )
+custom_constants/shadow_offset_x = 1
+custom_constants/shadow_offset_y = 2
 align = 1
 valign = 1
 
 [node name="StoryCard" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
-margin_top = 128.0
+margin_top = 134.0
 margin_right = 944.0
-margin_bottom = 328.0
+margin_bottom = 396.0
 size_flags_vertical = 3
 custom_styles/panel = SubResource( 2 )
 
@@ -162,7 +182,7 @@ custom_styles/panel = SubResource( 2 )
 margin_left = 1.0
 margin_top = 1.0
 margin_right = 943.0
-margin_bottom = 199.0
+margin_bottom = 261.0
 custom_constants/margin_right = 24
 custom_constants/margin_top = 18
 custom_constants/margin_left = 24
@@ -172,18 +192,21 @@ custom_constants/margin_bottom = 18
 margin_left = 24.0
 margin_top = 18.0
 margin_right = 918.0
-margin_bottom = 180.0
+margin_bottom = 242.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 custom_colors/font_color = Color( 0.92, 0.94, 0.98, 1 )
+custom_colors/font_color_shadow = Color( 0, 0, 0, 0.9 )
+custom_constants/shadow_offset_x = 1
+custom_constants/shadow_offset_y = 2
 align = 1
 valign = 1
 autowrap = true
 
 [node name="ActionVBox" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
-margin_top = 342.0
+margin_top = 410.0
 margin_right = 944.0
-margin_bottom = 498.0
+margin_bottom = 500.0
 size_flags_horizontal = 3
 custom_constants/separation = 10
 alignment = 1
@@ -226,22 +249,22 @@ rect_min_size = Vector2( 0, 40 )
 size_flags_horizontal = 3
 
 [node name="BottomBar" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
-margin_top = 512.0
+margin_top = 514.0
 margin_right = 944.0
 margin_bottom = 552.0
 custom_constants/separation = 10
 alignment = 1
 
 [node name="MatchButton" type="Button" parent="MarginContainer/VBoxContainer/BottomBar"]
-margin_left = 102.0
-margin_right = 242.0
-margin_bottom = 40.0
+margin_left = 257.0
+margin_right = 397.0
+margin_bottom = 38.0
 rect_min_size = Vector2( 140, 38 )
 
 [node name="FightButton" type="Button" parent="MarginContainer/VBoxContainer/BottomBar"]
-margin_left = 252.0
-margin_right = 392.0
-margin_bottom = 40.0
+margin_left = 407.0
+margin_right = 547.0
+margin_bottom = 38.0
 rect_min_size = Vector2( 140, 38 )
 
 [node name="AdminButton" type="Button" parent="MarginContainer/VBoxContainer/BottomBar"]
@@ -252,7 +275,7 @@ margin_bottom = 40.0
 rect_min_size = Vector2( 110, 38 )
 
 [node name="ResetButton" type="Button" parent="MarginContainer/VBoxContainer/BottomBar"]
-margin_left = 522.0
-margin_right = 652.0
-margin_bottom = 40.0
+margin_left = 557.0
+margin_right = 687.0
+margin_bottom = 38.0
 rect_min_size = Vector2( 130, 38 )

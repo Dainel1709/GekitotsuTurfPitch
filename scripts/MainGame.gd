@@ -1,5 +1,8 @@
 extends Control
 
+onready var prologue_video_player = get_node_or_null("PrologueVideoPlayer")
+onready var header_card = $MarginContainer/VBoxContainer/HeaderCard
+onready var story_card = $MarginContainer/VBoxContainer/StoryCard
 onready var player_header_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/HeaderTopRow/PlayerHeaderLabel
 onready var config_button = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/HeaderTopRow/ConfigButton
 onready var stats_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/StatsLabel
@@ -64,6 +67,8 @@ func _ready() -> void:
 		reset_button.connect("pressed", self, "_on_reset_pressed")
 	if config_button:
 		config_button.connect("pressed", self, "_on_config_pressed")
+	if prologue_video_player:
+		prologue_video_player.connect("finished", self, "_on_prologue_video_finished")
 		config_button.text = "⚙ Config"
 
 	_sync_from_save_file()
@@ -191,6 +196,7 @@ func update_ui() -> void:
 
 	# Limpiar iconos de cantera antes de despachar la fase actual
 	_clear_choice_button_logos()
+	_update_prologue_video_layer(current_phase == "PROLOGUE_HIT")
 
 	# Despacho por fase narrativa
 	if current_phase == "ENDING" and current_ending != "":
@@ -286,6 +292,30 @@ func _show_create_player_screen(gs) -> void:
 		third_academy_button.visible = false
 	_show_bottom_bar(true, false, false, false, true, false)
 	_setup_focus()
+
+func _update_prologue_video_layer(is_prologue: bool) -> void:
+	if prologue_video_player:
+		prologue_video_player.visible = is_prologue
+		if is_prologue and not prologue_video_player.is_playing():
+			prologue_video_player.play()
+		elif not is_prologue and prologue_video_player.is_playing():
+			prologue_video_player.stop()
+
+	var card_alpha = 0.36 if is_prologue else 0.94
+	var story_alpha = 0.34 if is_prologue else 0.95
+	if header_card:
+		var hc_style = header_card.get_stylebox("panel")
+		if hc_style is StyleBoxFlat:
+			hc_style.bg_color.a = card_alpha
+	if story_card:
+		var sc_style = story_card.get_stylebox("panel")
+		if sc_style is StyleBoxFlat:
+			sc_style.bg_color.a = story_alpha
+
+func _on_prologue_video_finished() -> void:
+	var gs = get_node_or_null("/root/GameSettings")
+	if gs and gs.story_phase == "PROLOGUE_HIT" and prologue_video_player:
+		prologue_video_player.play()
 
 func _show_prologue_hit_screen(gs) -> void:
 	var pname = gs.player_name if gs else "Ryu"
