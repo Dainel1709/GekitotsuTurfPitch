@@ -75,7 +75,7 @@ func _process(delta):
 	var focus = player_pos.linear_interpolate(ball_pos, 0.65)
 
 	# Slight look-ahead towards north or south goal in the final third
-	var field_z_half = 45.0
+	var field_z_half = 28.0
 	if ball_pos.z > field_z_half * 0.66:
 		focus.z += look_ahead_dist
 	elif ball_pos.z < -field_z_half * 0.66:
@@ -91,7 +91,7 @@ func _process(delta):
 
 	var desired_y = clamp(base_height + spread * 0.35, base_height, max_height)
 	var desired_x = clamp(focus.x, -18.0, 18.0)
-	var desired_z = clamp(focus.z + z_offset_from_tilt, -52.0, 52.0)
+	var desired_z = clamp(focus.z + z_offset_from_tilt, -35.0, 35.0)
 
 	var blend = clamp(smooth_speed * delta, 0.0, 1.0)
 	var next_pos = translation

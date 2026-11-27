@@ -19,6 +19,9 @@ var sprint_drain_mult: float = 1.0
 var fury: float = 0.0 setget set_fury, get_fury
 var max_fury: float = 100.0
 
+export(String) var tactical_slot: String = "ST"
+export(Vector3) var home_position: Vector3 = Vector3(0.0, 0.8, -3.5)
+
 # Configuración de Disparo y Balón
 export var fallback_base_kick_force: float = 16.0
 export var fallback_max_kick_force: float = 28.0
@@ -334,6 +337,10 @@ func _physics_process(delta: float) -> void:
 	velocity.z = move_direction.z * current_speed
 
 	velocity = move_and_slide(velocity, Vector3.UP)
+
+	# Mantener dentro de los límites jugables de la cancha
+	translation.x = clamp(translation.x, -19.0, 19.0)
+	translation.z = clamp(translation.z, -27.5, 27.5)
 
 	# 6. Conducción controlada del balón (Dribbling en plano X/Z) y detección de colisiones
 	is_colliding_with_ball = false

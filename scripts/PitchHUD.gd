@@ -16,6 +16,8 @@ var match_finished: bool = false
 # Reloj de partido: 3 minutos reales (180 segundos) = 90 minutos de partido (1s real = 30s de partido)
 const MATCH_DURATION_REAL: float = 180.0
 var real_elapsed_time: float = 0.0
+var half_time_formation_changed: bool = false
+var late_game_formation_changed: bool = false
 
 # Sistema de Tácticas PPSSPP (SELECT)
 var tactic_index: int = 0
@@ -207,10 +209,52 @@ func _process(delta: float) -> void:
 	# 3. Avance del cronómetro de partido
 	real_elapsed_time += delta
 	_update_clock_and_hud()
+	_check_tactical_rotation()
 
 	# 4. Comprobar si se han cumplido los 90:00 minutos de partido (180 segundos reales)
 	if real_elapsed_time >= MATCH_DURATION_REAL:
 		_finish_match_90_minutes()
+
+func _check_tactical_rotation() -> void:
+	if match_finished:
+		return
+	var match_sec_total = int(real_elapsed_time * 30.0)
+	var match_min = int(match_sec_total / 60)
+
+	var pitch_nodes = get_tree().get_nodes_in_group("football_pitch")
+	var pitch_node = pitch_nodes[0] if pitch_nodes.size() > 0 else null
+	if not pitch_node:
+		return
+
+	# Minuto 45:00 (descanso)
+	if match_min >= 45 and not half_time_formation_changed:
+		half_time_formation_changed = true
+		var next_idx = (pitch_node.current_rival_formation_idx + 1) % pitch_node.rival_formations.size()
+		var new_form = pitch_node.rival_formations[next_idx]
+		pitch_node.set_rival_formation(new_form)
+		show_tactical_notice("¡CAMBIO TÁCTICO RIVAL: %s!" % new_form)
+		print("[PitchHUD] Descanso (45:00): Cambio táctico rival a ", new_form)
+
+	# Minuto 70:00 (si va perdiendo)
+	elif match_min >= 70 and not late_game_formation_changed:
+		var p_score = get_player_score()
+		var opp_score = get_opponent_score()
+		if opp_score < p_score:
+			late_game_formation_changed = true
+			var current_f = pitch_node.current_rival_formation
+			var new_form = "4-3-3" if current_f != "4-3-3" else "5-2-3"
+			pitch_node.set_rival_formation(new_form)
+			show_tactical_notice("¡CAMBIO TÁCTICO RIVAL: %s!" % new_form)
+			print("[PitchHUD] Minuto 70 (rival perdiendo): Cambio táctico rival a ", new_form)
+
+func show_tactical_notice(msg: String) -> void:
+	if goal_notice_label:
+		goal_notice_label.text = msg
+		goal_notice_label.modulate = Color(1.0, 0.8, 0.2)
+		goal_notice_label.visible = true
+		yield(get_tree().create_timer(3.0, true), "timeout")
+		if goal_notice_label and goal_notice_label.text == msg and not match_finished:
+			goal_notice_label.visible = false
 
 func _toggle_pause() -> void:
 	if match_finished:

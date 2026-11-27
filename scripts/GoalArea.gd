@@ -120,11 +120,15 @@ func _reset_all_actors() -> void:
 				p.kick_cooldown = 0.0
 			if "tackle_cooldown" in p:
 				p.tackle_cooldown = 0.0
-			# Reposicionar al jugador en su posición inicial
-			if p.has_method("get") and p.get("initial_position") != null:
+			# Reposicionar al jugador en su posición táctica o inicial
+			if "home_position" in p and p.home_position != Vector3.ZERO:
+				p.global_transform.origin = p.home_position
+			elif p.has_method("get") and p.get("initial_position") != null:
 				p.global_transform.origin = p.initial_position
 			else:
-				p.global_transform.origin = Vector3(0.0, 0.8, 12.0)
+				p.global_transform.origin = Vector3(0.0, 0.8, -3.5)
+			if "velocity" in p:
+				p.velocity = Vector3.ZERO
 		print("[GoalArea] Jugador principal reposicionado tras gol.")
 
 	# Reiniciar IA: compañeros, rivales y porteros
@@ -135,7 +139,9 @@ func _reset_all_actors() -> void:
 			if ai.has_method("reset_position"):
 				ai.reset_position()
 			elif ai is Spatial:
-				if "initial_position" in ai:
+				if "home_position" in ai and ai.home_position != Vector3.ZERO:
+					ai.global_transform.origin = ai.home_position
+				elif "initial_position" in ai:
 					ai.global_transform.origin = ai.initial_position
 				if "has_ball" in ai:
 					ai.has_ball = false
@@ -143,4 +149,6 @@ func _reset_all_actors() -> void:
 					ai.is_dribbling = false
 				if "velocity" in ai:
 					ai.velocity = Vector3.ZERO
+				if "target_velocity" in ai:
+					ai.target_velocity = Vector3.ZERO
 	print("[GoalArea] Todas las posiciones de IA reiniciadas tras gol.")
