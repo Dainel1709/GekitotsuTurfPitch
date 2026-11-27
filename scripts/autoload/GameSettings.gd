@@ -365,7 +365,8 @@ func get_scheme_short_name() -> String:
 func apply_audio_and_display_settings() -> void:
 	_apply_bus_volume("Music", music_volume)
 	_apply_bus_volume("SFX", sfx_volume)
-	OS.window_fullscreen = fullscreen_enabled
+	if not ("--no-window" in OS.get_cmdline_args()) and OS.window_fullscreen != fullscreen_enabled:
+		OS.window_fullscreen = fullscreen_enabled
 
 func _apply_bus_volume(bus_name: String, vol: float) -> void:
 	var idx = AudioServer.get_bus_index(bus_name)

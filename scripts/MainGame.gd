@@ -1,6 +1,7 @@
 extends Control
 
-onready var player_header_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/PlayerHeaderLabel
+onready var player_header_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/HeaderTopRow/PlayerHeaderLabel
+onready var config_button = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/HeaderTopRow/ConfigButton
 onready var stats_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/StatsLabel
 onready var league_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/LeagueLabel
 onready var balance_label = $MarginContainer/VBoxContainer/HeaderCard/HeaderMargin/HeaderVBox/BalanceLabel
@@ -16,7 +17,6 @@ onready var match_button = $MarginContainer/VBoxContainer/BottomBar/MatchButton
 onready var fight_button = $MarginContainer/VBoxContainer/BottomBar/FightButton
 onready var admin_button = $MarginContainer/VBoxContainer/BottomBar/AdminButton
 onready var reset_button = $MarginContainer/VBoxContainer/BottomBar/ResetButton
-onready var config_button = $ConfigButton if has_node("ConfigButton") else null
 
 var story_manager = null
 var admin_panel = null
@@ -50,6 +50,7 @@ func _ready() -> void:
 	if fight_button:
 		fight_button.connect("pressed", self, "_on_fight_pressed")
 	if admin_button:
+		admin_button.visible = false
 		admin_button.connect("pressed", self, "_on_admin_pressed")
 	if reset_button:
 		reset_button.connect("pressed", self, "_on_reset_pressed")
@@ -63,10 +64,8 @@ func _ready() -> void:
 	update_ui()
 
 func _input(event) -> void:
-	if event is InputEventKey and event.pressed:
-		if event.scancode == KEY_F12:
-			_toggle_admin_panel()
-		elif event.scancode == KEY_ESCAPE:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.scancode == KEY_ESCAPE:
 			var so = get_node_or_null("/root/SettingsOverlay")
 			if so and not so.is_open():
 				_on_config_pressed()
@@ -412,8 +411,7 @@ func _show_bottom_bar(show_bar: bool, show_match: bool, show_fight: bool, _show_
 		fight_button.visible = show_fight
 		fight_button.text = "Pelea Callejera"
 	if admin_button:
-		admin_button.visible = show_admin
-		admin_button.text = "ADMIN (F12)"
+		admin_button.visible = false
 	if reset_button:
 		reset_button.visible = show_reset
 		reset_button.text = "Nueva Carrera"

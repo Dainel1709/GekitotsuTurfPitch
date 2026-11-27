@@ -29,9 +29,20 @@ func _init():
 	admin.set_script(admin_script)
 	root.add_child(admin)
 	assert(admin != null, "AdminStoryTree debe instanciarse")
+	assert(admin.visible == false, "AdminStoryTree debe iniciar oculto (visible == false)")
 	assert(admin.has_method("refresh_tree"), "Debe tener método refresh_tree")
 	assert(admin.has_method("_on_jump_pressed"), "Debe tener método _on_jump_pressed")
-	print("  -> Instanciación OK")
+
+	# Verificar toggle con F12
+	var f12_ev = InputEventKey.new()
+	f12_ev.scancode = KEY_F12
+	f12_ev.pressed = true
+	f12_ev.echo = false
+	admin._input(f12_ev)
+	assert(admin.visible == true, "F12 debe mostrar AdminStoryTree")
+	admin._input(f12_ev)
+	assert(admin.visible == false, "F12 por segunda vez debe ocultar AdminStoryTree")
+	print("  -> Instanciación, ocultamiento inicial y toggle F12 OK")
 
 	# --------------------------------------------------------------------------
 	# 2. Verificar saltos a todas las fases válidas

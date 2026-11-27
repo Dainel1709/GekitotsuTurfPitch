@@ -3,16 +3,16 @@
 [ext_resource path="res://scripts/SettingsMenu.gd" type="Script" id=1]
 
 [sub_resource type="StyleBoxFlat" id=1]
-bg_color = Color( 0.08, 0.1, 0.15, 0.97 )
+bg_color = Color( 0.075, 0.106, 0.149, 0.96 )
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color( 0.25, 0.78, 0.98, 0.7 )
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
+border_color = Color( 0.165, 0.247, 0.349, 0.9 )
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="SettingsOverlay" type="CanvasLayer"]
 pause_mode = 2

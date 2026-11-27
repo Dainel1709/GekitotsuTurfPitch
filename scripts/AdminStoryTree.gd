@@ -18,6 +18,7 @@ const COLOR_ENDING_ALT = Color(0.9, 0.5, 1.0)
 const COLOR_ENDING_SUPREME = Color(1.0, 0.95, 0.3)
 
 func _ready() -> void:
+	visible = false
 	anchor_right = 1.0
 	anchor_bottom = 1.0
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -86,6 +87,13 @@ func _ready() -> void:
 	scroll_container.add_child(tree_vbox)
 
 	refresh_tree()
+
+func _input(event) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.scancode == KEY_F12:
+		visible = not visible
+		if visible:
+			refresh_tree()
+		get_tree().set_input_as_handled()
 
 func refresh_tree() -> void:
 	if not tree_vbox:

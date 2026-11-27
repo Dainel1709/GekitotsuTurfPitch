@@ -1,18 +1,42 @@
-[gd_scene load_steps=3 format=2]
+[gd_scene load_steps=5 format=2]
 
 [ext_resource path="res://scripts/TitleScreen.gd" type="Script" id=1]
 
 [sub_resource type="StyleBoxFlat" id=1]
-bg_color = Color( 0.08, 0.1, 0.14, 0.94 )
+bg_color = Color( 0.075, 0.106, 0.149, 0.94 )
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color( 0.2, 0.75, 0.95, 0.65 )
+border_color = Color( 0.165, 0.247, 0.349, 0.85 )
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id=2]
+bg_color = Color( 0.075, 0.106, 0.149, 0.92 )
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color( 0.165, 0.247, 0.349, 0.85 )
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id=3]
+bg_color = Color( 0.105, 0.149, 0.212, 0.96 )
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color( 0.28, 0.45, 0.65, 0.95 )
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="TitleScreen" type="Control"]
 anchor_right = 1.0
@@ -30,9 +54,9 @@ anchor_bottom = 1.0
 
 [node name="CardPanel" type="PanelContainer" parent="CenterContainer"]
 margin_left = 172.0
-margin_top = 110.0
+margin_top = 102.0
 margin_right = 852.0
-margin_bottom = 490.0
+margin_bottom = 498.0
 rect_min_size = Vector2( 680, 0 )
 custom_styles/panel = SubResource( 1 )
 
@@ -40,7 +64,7 @@ custom_styles/panel = SubResource( 1 )
 margin_left = 2.0
 margin_top = 2.0
 margin_right = 678.0
-margin_bottom = 378.0
+margin_bottom = 394.0
 custom_constants/margin_right = 36
 custom_constants/margin_top = 32
 custom_constants/margin_left = 36
@@ -50,7 +74,7 @@ custom_constants/margin_bottom = 32
 margin_left = 36.0
 margin_top = 32.0
 margin_right = 640.0
-margin_bottom = 344.0
+margin_bottom = 360.0
 custom_constants/separation = 18
 alignment = 1
 
@@ -102,6 +126,7 @@ size_flags_horizontal = 4
 text = "Continuar Carrera Guardada"
 
 [node name="AdminButton" type="Button" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+visible = false
 margin_left = 142.0
 margin_top = 282.0
 margin_right = 462.0
@@ -113,9 +138,13 @@ text = "ADMIN: Árbol de Historia (F12)"
 [node name="ConfigButton" type="Button" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
-margin_left = -126.0
+margin_left = -111.0
 margin_top = 14.0
 margin_right = -16.0
-margin_bottom = 48.0
-rect_min_size = Vector2( 110, 34 )
+margin_bottom = 42.0
+rect_min_size = Vector2( 95, 28 )
+custom_styles/hover = SubResource( 3 )
+custom_styles/pressed = SubResource( 3 )
+custom_styles/focus = SubResource( 3 )
+custom_styles/normal = SubResource( 2 )
 text = "⚙ Config"

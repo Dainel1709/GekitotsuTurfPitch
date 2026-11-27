@@ -13,6 +13,7 @@ func _ready() -> void:
 	if continue_button:
 		continue_button.connect("pressed", self, "_on_ContinueButton_pressed")
 	if admin_button:
+		admin_button.visible = false
 		admin_button.connect("pressed", self, "_on_AdminButton_pressed")
 	if config_button:
 		config_button.connect("pressed", self, "_on_ConfigButton_pressed")
@@ -22,10 +23,8 @@ func _ready() -> void:
 	_setup_focus()
 
 func _input(event) -> void:
-	if event is InputEventKey and event.pressed:
-		if event.scancode == KEY_F12:
-			_toggle_admin_overlay()
-		elif event.scancode == KEY_ESCAPE:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.scancode == KEY_ESCAPE:
 			var so = get_node_or_null("/root/SettingsOverlay")
 			if so and not so.is_open():
 				_on_ConfigButton_pressed()
