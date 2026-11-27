@@ -35,6 +35,14 @@ protected:
         ClassDB::bind_method(D_METHOD("is_career_over"), &GekitotsuStoryManager::is_career_over);
         ClassDB::bind_method(D_METHOD("apply_match_result", "player_goals", "opponent_goals"), &GekitotsuStoryManager::apply_match_result);
         ClassDB::bind_method(D_METHOD("apply_fight_result", "player_won"), &GekitotsuStoryManager::apply_fight_result);
+        ClassDB::bind_method(D_METHOD("rebalance_story_tree", "combate", "disciplina", "reputacion", "goals", "assists", "red_cards", "matchday"), &GekitotsuStoryManager::rebalance_story_tree);
+        ClassDB::bind_method(D_METHOD("get_active_branch_name"), &GekitotsuStoryManager::get_active_branch_name);
+        ClassDB::bind_method(D_METHOD("get_balance_delta"), &GekitotsuStoryManager::get_balance_delta);
+        ClassDB::bind_method(D_METHOD("get_football_score"), &GekitotsuStoryManager::get_football_score);
+        ClassDB::bind_method(D_METHOD("get_street_score"), &GekitotsuStoryManager::get_street_score);
+        ClassDB::bind_method(D_METHOD("get_active_branch_id"), &GekitotsuStoryManager::get_active_branch_id);
+        ClassDB::bind_method(D_METHOD("get_dynamic_event_title"), &GekitotsuStoryManager::get_dynamic_event_title);
+        ClassDB::bind_method(D_METHOD("get_dynamic_event_prompt"), &GekitotsuStoryManager::get_dynamic_event_prompt);
     }
 
 public:
@@ -110,6 +118,40 @@ public:
 
     void apply_fight_result(bool player_won) {
         controller.apply_fight_result(player_won);
+    }
+
+    String rebalance_story_tree(int combate, int disciplina, int reputacion,
+                                int goals, int assists, int red_cards, int matchday) {
+        return String(controller.rebalance_story_tree(
+            combate, disciplina, reputacion, goals, assists, red_cards, matchday).c_str());
+    }
+
+    String get_active_branch_name() const {
+        return String(controller.get_active_branch_name().c_str());
+    }
+
+    int get_balance_delta() const {
+        return controller.get_balance_delta();
+    }
+
+    int get_football_score() const {
+        return controller.get_football_score();
+    }
+
+    int get_street_score() const {
+        return controller.get_street_score();
+    }
+
+    String get_active_branch_id() const {
+        return String(controller.get_active_branch_id().c_str());
+    }
+
+    String get_dynamic_event_title() const {
+        return String(controller.get_dynamic_event_title().c_str());
+    }
+
+    String get_dynamic_event_prompt() const {
+        return String(controller.get_dynamic_event_prompt().c_str());
     }
 };
 
@@ -196,6 +238,40 @@ public:
 
     void apply_fight_result(bool player_won) {
         controller.apply_fight_result(player_won);
+    }
+
+    std::string rebalance_story_tree(int combate, int disciplina, int reputacion,
+                                     int goals, int assists, int red_cards, int matchday) {
+        return controller.rebalance_story_tree(
+            combate, disciplina, reputacion, goals, assists, red_cards, matchday);
+    }
+
+    std::string get_active_branch_name() const {
+        return controller.get_active_branch_name();
+    }
+
+    int get_balance_delta() const {
+        return controller.get_balance_delta();
+    }
+
+    int get_football_score() const {
+        return controller.get_football_score();
+    }
+
+    int get_street_score() const {
+        return controller.get_street_score();
+    }
+
+    std::string get_active_branch_id() const {
+        return controller.get_active_branch_id();
+    }
+
+    std::string get_dynamic_event_title() const {
+        return controller.get_dynamic_event_title();
+    }
+
+    std::string get_dynamic_event_prompt() const {
+        return controller.get_dynamic_event_prompt();
     }
 };
 

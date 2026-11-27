@@ -41,6 +41,15 @@ var academy_name: String = "Estudiantes de Mérida"
 var goals_scored: int = 0
 var assists: int = 0
 
+# Estado del motor de balanceo narrativo dinámico (DeSiGNAR)
+var football_score: int = 0
+var street_score: int = 0
+var balance_delta: int = 0
+var active_branch_id: String = "DUAL_LIFE"
+var active_branch_name: String = "Rama Doble Vida"
+var dynamic_event_title: String = ""
+var dynamic_event_prompt: String = ""
+
 # Ending IDs válidos
 const VALID_ENDINGS = [
 	"EXPELLED_EARLY",
@@ -252,6 +261,51 @@ func evaluate_j8_ending() -> String:
 	# RELEASED_BAD: 3.º+
 	else:
 		return "RELEASED_BAD"
+
+func rebalance_story_tree(combate: int, disciplina: int, reputacion: int, goals: int, assists_val: int, red_cards: int, matchday: int) -> String:
+	football_score = disciplina + reputacion + (goals + assists_val) * 2
+	street_score = int(combate * 1.8) + (red_cards * 10)
+	balance_delta = football_score - street_score
+
+	if balance_delta >= 10:
+		active_branch_id = "ELITE_FOOTBALL"
+		active_branch_name = "Rama Élite Deportiva"
+		dynamic_event_title = "Ojeadores en la Grada (J%d)" % matchday
+		dynamic_event_prompt = "Los visores del primer equipo siguen cada pase tuyo. Tu perfil futbolístico domina el árbol (Delta +%d): el Golden Boy está al alcance si mantienes la disciplina y sumas G+A." % balance_delta
+	elif balance_delta <= -10:
+		active_branch_id = "STREET_BRAWLER"
+		active_branch_name = "Rama Submundo Callejero"
+		dynamic_event_title = "Presión del Submundo (J%d)" % matchday
+		dynamic_event_prompt = "Tu fama en el callejón supera al césped (Delta %d). Promotores clandestinos y pandillas rivales te buscan tras cada partido; las emboscadas y ofertas de pelea acechan." % balance_delta
+	else:
+		active_branch_id = "DUAL_LIFE"
+		active_branch_name = "Rama Doble Vida"
+		dynamic_event_title = "Dilema de Doble Vida (J%d)" % matchday
+		dynamic_event_prompt = "Caminas sobre la cuerda floja entre la cantera y el asfalto (Delta %+d). Un paso hacia el club o hacia el callejón inclinará tu destino definitivo." % balance_delta
+
+	return active_branch_id
+
+func get_active_branch_name() -> String:
+	return active_branch_name
+
+func get_balance_delta() -> int:
+	return balance_delta
+
+func get_projected_ending(data_override: Dictionary = {}) -> String:
+	var data = data_override if not data_override.empty() else _read_save_dict()
+	var disc = int(data.get("discipline", 0))
+	var comb = int(data.get("combat", 0))
+	var md = int(data.get("matchday", 1))
+	if md > 1 and (disc <= 0 or red_cards_total >= 2):
+		return "EXPELLED_EARLY"
+	if active_branch_id == "STREET_BRAWLER":
+		if comb >= 25:
+			return "PRO_FIGHTER_J8"
+		if comb >= 22:
+			return "PRO_FIGHTER_EARLY"
+		if disc < 10:
+			return "HOSPITAL_DREAM_BAD"
+	return evaluate_j8_ending()
 
 func _register_sdl_mappings() -> void:
 	for mapping in SDL_PLAYSTATION_MAPPINGS:

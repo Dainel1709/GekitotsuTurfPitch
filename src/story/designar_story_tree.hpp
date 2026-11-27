@@ -44,6 +44,9 @@ struct NarrativeDilemma {
 
     // Desenlace en caso de ser nodo hoja (Final a los 18 años)
     std::string ending_summary;
+
+    // Peso dinámico del nodo en el árbol DeSiGNAR (actualizado por rebalance_story_tree)
+    int weight = 1;
 };
 
 /**
@@ -63,6 +66,15 @@ private:
     Node* root = nullptr;
     Node* current = nullptr;
     PlayerStats& stats;
+
+    // Estado del motor de balanceo narrativo dinámico
+    int football_score = 0;
+    int street_score = 0;
+    int balance_delta = 0;
+    std::string active_branch_id = "DUAL_LIFE";
+    std::string active_branch_name = "Rama Doble Vida";
+    std::string dynamic_event_title;
+    std::string dynamic_event_prompt;
 
     void free_subtree(Node* node) {
         if (!node) return;
@@ -269,6 +281,18 @@ public:
     void add_street_reputation(int amount) noexcept { stats.street_reputation += amount; }
     void add_combat_technique(int amount) noexcept { stats.combat_technique += amount; }
     void add_money(int amount) noexcept { stats.money += amount; }
+
+    // --- Motor de Balanceo Narrativo por Estadísticas (DeSiGNAR) ---
+    std::string rebalance_story_tree(int combate, int disciplina, int reputacion,
+                                     int goals, int assists, int red_cards, int matchday);
+
+    [[nodiscard]] int get_football_score() const noexcept { return football_score; }
+    [[nodiscard]] int get_street_score() const noexcept { return street_score; }
+    [[nodiscard]] int get_balance_delta() const noexcept { return balance_delta; }
+    [[nodiscard]] std::string get_active_branch_id() const { return active_branch_id; }
+    [[nodiscard]] std::string get_active_branch_name() const { return active_branch_name; }
+    [[nodiscard]] std::string get_dynamic_event_title() const { return dynamic_event_title; }
+    [[nodiscard]] std::string get_dynamic_event_prompt() const { return dynamic_event_prompt; }
 };
 
 } // namespace gtp

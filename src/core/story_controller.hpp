@@ -113,6 +113,40 @@ public:
     void add_money(int amount) noexcept {
         tree.add_money(amount);
     }
+
+    // --- Motor de Balanceo Narrativo ---
+    std::string rebalance_story_tree(int combate, int disciplina, int reputacion,
+                                     int goals, int assists, int red_cards, int matchday) {
+        return tree.rebalance_story_tree(combate, disciplina, reputacion, goals, assists, red_cards, matchday);
+    }
+
+    [[nodiscard]] int get_football_score() const noexcept {
+        return tree.get_football_score();
+    }
+
+    [[nodiscard]] int get_street_score() const noexcept {
+        return tree.get_street_score();
+    }
+
+    [[nodiscard]] int get_balance_delta() const noexcept {
+        return tree.get_balance_delta();
+    }
+
+    [[nodiscard]] std::string get_active_branch_id() const {
+        return tree.get_active_branch_id();
+    }
+
+    [[nodiscard]] std::string get_active_branch_name() const {
+        return tree.get_active_branch_name();
+    }
+
+    [[nodiscard]] std::string get_dynamic_event_title() const {
+        return tree.get_dynamic_event_title();
+    }
+
+    [[nodiscard]] std::string get_dynamic_event_prompt() const {
+        return tree.get_dynamic_event_prompt();
+    }
 };
 
 } // namespace gtp

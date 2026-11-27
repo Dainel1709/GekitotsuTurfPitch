@@ -2,6 +2,7 @@ extends Control
 
 onready var stats_label = $VBoxContainer/StatsLabel if has_node("VBoxContainer/StatsLabel") else null
 onready var league_label = $VBoxContainer/LeagueLabel if has_node("VBoxContainer/LeagueLabel") else null
+onready var balance_label = $VBoxContainer/BalanceLabel if has_node("VBoxContainer/BalanceLabel") else null
 onready var description_label = $VBoxContainer/DescriptionLabel if has_node("VBoxContainer/DescriptionLabel") else null
 onready var left_button = $VBoxContainer/LeftButton if has_node("VBoxContainer/LeftButton") else null
 onready var right_button = $VBoxContainer/RightButton if has_node("VBoxContainer/RightButton") else null
@@ -128,6 +129,49 @@ func update_ui() -> void:
 		return
 
 	# --- MODO NORMAL: Liga y Hub ---
+	# Rebalancear árbol narrativo DeSiGNAR según estadísticas actuales
+	var d_val = int(meta_stats.get("discipline", 0))
+	var c_val = int(meta_stats.get("combat", 0))
+	var r_val = int(meta_stats.get("reputation", 0))
+	var g_val = gs.goals_scored if gs else 0
+	var a_val = gs.assists if gs else 0
+	var rc_val = gs.red_cards_total if gs else 0
+
+	var branch_name = "Rama Doble Vida"
+	var delta_val = 0
+	var f_score = 0
+	var s_score = 0
+	var dyn_title = ""
+	var dyn_prompt = ""
+
+	if story_manager and story_manager.has_method("rebalance_story_tree"):
+		story_manager.rebalance_story_tree(c_val, d_val, r_val, g_val, a_val, rc_val, matchday)
+		branch_name = story_manager.get_active_branch_name()
+		delta_val = int(story_manager.get_balance_delta())
+		f_score = int(story_manager.get_football_score()) if story_manager.has_method("get_football_score") else 0
+		s_score = int(story_manager.get_street_score()) if story_manager.has_method("get_street_score") else 0
+		dyn_title = story_manager.get_dynamic_event_title() if story_manager.has_method("get_dynamic_event_title") else ""
+		dyn_prompt = story_manager.get_dynamic_event_prompt() if story_manager.has_method("get_dynamic_event_prompt") else ""
+	if gs and gs.has_method("rebalance_story_tree"):
+		gs.rebalance_story_tree(c_val, d_val, r_val, g_val, a_val, rc_val, matchday)
+		if not (story_manager and story_manager.has_method("rebalance_story_tree")):
+			branch_name = gs.get_active_branch_name()
+			delta_val = int(gs.get_balance_delta())
+			f_score = int(gs.football_score)
+			s_score = int(gs.street_score)
+			dyn_title = gs.dynamic_event_title
+			dyn_prompt = gs.dynamic_event_prompt
+
+	if balance_label:
+		balance_label.visible = true
+		balance_label.text = "Tendencia del Árbol: %s (Delta: %+d | F:%d vs C:%d)" % [branch_name, delta_val, f_score, s_score]
+		if delta_val >= 10:
+			balance_label.modulate = Color(0.25, 0.95, 0.45)
+		elif delta_val <= -10:
+			balance_label.modulate = Color(1.0, 0.4, 0.25)
+		else:
+			balance_label.modulate = Color(1.0, 0.85, 0.2)
+
 	# Actualizar banner de jornada de liga
 	if league_label:
 		league_label.text = "Jornada %d — Rival: %s (Liga: %d V / %d D)" % [matchday, rival_name, wins, losses]
@@ -142,7 +186,7 @@ func update_ui() -> void:
 		var is_over = story_manager.is_career_over() if story_manager.has_method("is_career_over") else false
 
 		if description_label:
-			description_label.text = "[%s]\n\n%s" % [title, prompt]
+			description_label.text = "[%s]\n%s\n\n[%s] %s" % [title, prompt, dyn_title, dyn_prompt]
 		if stats_label:
 			stats_label.text = "Disciplina Deportiva: %d | Combate: %d | Dinero: $%d | Reputación en Asfalto: %d" % [discipline, combat, money, reputation]
 
@@ -172,7 +216,7 @@ func update_ui() -> void:
 		var r = meta_stats.get("reputation", 0)
 
 		if description_label:
-			description_label.text = "[La Encrucijada de la Cantera]\n\nHas sido admitido en las pruebas del club juvenil, pero esta noche hay una pelea clandestina en el callejón que paga el alquiler familiar. ¿Qué camino eliges?"
+			description_label.text = "[%s — %s]\n%s\n\n[La Encrucijada de la Cantera] ¿Entrenamiento profesional o pelea en el callejón?" % [dyn_title, branch_name, dyn_prompt]
 		if left_button:
 			left_button.text = "Quedarse a entrenar (+15 Disciplina, -5 Dinero)"
 		if right_button:

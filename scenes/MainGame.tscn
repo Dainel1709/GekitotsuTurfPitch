@@ -37,6 +37,17 @@ text = "Jornada 1 — Rival: Barrio Norte FC (Liga: 0 V / 0 D)"
 align = 1
 valign = 1
 
+[node name="BalanceLabel" type="Label" parent="VBoxContainer"]
+margin_top = 72.0
+margin_right = 904.0
+margin_bottom = 96.0
+rect_min_size = Vector2( 0, 24 )
+size_flags_horizontal = 3
+custom_colors/font_color = Color( 1, 0.85, 0.2, 1 )
+text = "Tendencia del Árbol: Rama Doble Vida (Delta: +0 | F:0 vs C:0)"
+align = 1
+valign = 1
+
 [node name="DescriptionLabel" type="Label" parent="VBoxContainer"]
 margin_top = 72.0
 margin_right = 904.0
