@@ -122,13 +122,13 @@ func apply_formations() -> void:
 
 	var matchday = 1
 	if get_tree() and get_tree().root and get_tree().root.has_meta("gtp_stats"):
-		matchday = get_tree().root.get_meta("gtp_stats").get("matchday", 1)
+		matchday = int(get_tree().root.get_meta("gtp_stats").get("matchday", 1))
 	else:
 		var gs = get_node_or_null("/root/GameSettings")
 		if gs and gs.has_method("load_progress"):
-			matchday = gs.load_progress().get("matchday", 1)
+			matchday = int(gs.load_progress().get("matchday", 1))
 
-	current_rival_formation_idx = (matchday - 1) % rival_formations.size()
+	current_rival_formation_idx = int(max(0, matchday - 1)) % rival_formations.size()
 	set_rival_formation(rival_formations[current_rival_formation_idx])
 
 func apply_ally_formation_4213() -> void:
