@@ -38,6 +38,12 @@ const ACADEMIES = [
 	"Real Madrid Castilla"
 ]
 
+const ACADEMY_LOGOS = {
+	"Estudiantes de Mérida": "res://assets/textures/logos/estudiantesdemerida.png",
+	"FC Barcelona Juvenil": "res://assets/textures/logos/barcelona.png",
+	"Real Madrid Castilla": "res://assets/textures/logos/realmadrid.png"
+}
+
 func _ready() -> void:
 	if left_button:
 		left_button.connect("pressed", self, "_on_left_choice_pressed")
@@ -181,6 +187,9 @@ func update_ui() -> void:
 		else:
 			balance_label.modulate = Color(1.0, 0.85, 0.2)
 
+	# Limpiar iconos de cantera antes de despachar la fase actual
+	_clear_choice_button_logos()
+
 	# Despacho por fase narrativa
 	if current_phase == "ENDING" and current_ending != "":
 		_show_ending_screen(gs, meta_stats)
@@ -292,6 +301,27 @@ func _show_prologue_hit_screen(gs) -> void:
 	_show_bottom_bar(true, false, false, false, true, false)
 	_setup_focus()
 
+func _load_academy_logo(club_name: String):
+	var path = ACADEMY_LOGOS.get(club_name, "")
+	if path != "" and ResourceLoader.exists(path):
+		return load(path)
+	return null
+
+func _set_choice_button_logo(btn, club_name: String) -> void:
+	if not btn:
+		return
+	var tex = _load_academy_logo(club_name)
+	btn.icon = tex
+	btn.expand_icon = tex != null
+	btn.rect_min_size.y = 48
+
+func _clear_choice_button_logos() -> void:
+	for btn in [left_button, right_button, third_academy_button]:
+		if btn:
+			btn.icon = null
+			btn.expand_icon = false
+			btn.rect_min_size.y = 40
+
 func _show_select_academy_screen(gs) -> void:
 	var pname = gs.player_name if gs else "Ryu"
 	if description_label:
@@ -301,12 +331,15 @@ func _show_select_academy_screen(gs) -> void:
 	if left_button:
 		left_button.visible = true
 		left_button.text = "1. %s" % ACADEMIES[0]
+		_set_choice_button_logo(left_button, ACADEMIES[0])
 	if right_button:
 		right_button.visible = true
 		right_button.text = "2. %s" % ACADEMIES[1]
+		_set_choice_button_logo(right_button, ACADEMIES[1])
 	if third_academy_button:
 		third_academy_button.visible = true
 		third_academy_button.text = "3. %s" % ACADEMIES[2]
+		_set_choice_button_logo(third_academy_button, ACADEMIES[2])
 	_show_bottom_bar(true, false, false, false, true, false)
 	_setup_focus()
 
