@@ -81,6 +81,8 @@ func _init():
 		admin._on_jump_pressed(end_id)
 		assert(gs.story_phase == "ENDING", "Tras saltar a ending, story_phase debe ser 'ENDING', fue '%s'" % gs.story_phase)
 		assert(gs.ending_id == end_id, "ending_id debe ser '%s', fue '%s'" % [end_id, gs.ending_id])
+		if end_id == "GOLDEN_BOY_CHAMPION":
+			assert(gs.goals_scored + gs.assists > 11, "Salto a GOLDEN_BOY_CHAMPION debe configurar G+A > 11")
 		print("  -> Salto a %s: OK" % end_id)
 
 	# --------------------------------------------------------------------------

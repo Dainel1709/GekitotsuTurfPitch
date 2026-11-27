@@ -115,33 +115,33 @@ func _init():
 	gs.ending_id = ""
 	gs.red_cards_total = 0
 
-	# 7a. GOLDEN_BOY_CHAMPION: 1.º (wins=7) + goles+asist > 11
+	# 7a. GOLDEN_BOY_CHAMPION: >= 19 pts (wins=7 => 21 pts) + goles+asist > 11
 	gs.goals_scored = 10
 	gs.assists = 5
 	gs.save_progress({"discipline": 50, "combat": 20, "matchday": 9, "league_wins": 7, "league_losses": 1})
 	var ending_7a = gs.evaluate_j8_ending()
 	assert(ending_7a == "GOLDEN_BOY_CHAMPION", "Debe ser GOLDEN_BOY_CHAMPION, fue: " + ending_7a)
-	print("  -> GOLDEN_BOY_CHAMPION (1.º + g+a>11): OK")
+	print("  -> GOLDEN_BOY_CHAMPION (>=19 pts + g+a>11): OK")
 
-	# 7b. LEAGUE_CHAMPION: 1.º pero g+a <= 11
+	# 7b. LEAGUE_CHAMPION: >= 19 pts (wins=6, losses=1, draw=1 => 19 pts) pero g+a <= 11
 	gs.goals_scored = 5
 	gs.assists = 3
-	gs.save_progress({"league_wins": 7, "league_losses": 1})
+	gs.save_progress({"league_wins": 6, "league_losses": 1})
 	var ending_7b = gs.evaluate_j8_ending()
 	assert(ending_7b == "LEAGUE_CHAMPION", "Debe ser LEAGUE_CHAMPION, fue: " + ending_7b)
-	print("  -> LEAGUE_CHAMPION (1.º sin g+a>11): OK")
+	print("  -> LEAGUE_CHAMPION (>=19 pts sin g+a>11): OK")
 
-	# 7c. PRO_RUNNER_UP: 2.º (wins=4, draws=2, losses=2 => 14 pts)
-	gs.save_progress({"league_wins": 4, "league_losses": 2})
+	# 7c. PRO_RUNNER_UP: 15..18 pts (wins=5, losses=3 => 15 pts)
+	gs.save_progress({"league_wins": 5, "league_losses": 3})
 	var ending_7c = gs.evaluate_j8_ending()
 	assert(ending_7c == "PRO_RUNNER_UP", "Debe ser PRO_RUNNER_UP, fue: " + ending_7c)
-	print("  -> PRO_RUNNER_UP (2.º): OK")
+	print("  -> PRO_RUNNER_UP (15..18 pts): OK")
 
-	# 7d. RELEASED_BAD: 3.º+ (wins=2, losses=5, draw=1 => 7 pts)
-	gs.save_progress({"league_wins": 2, "league_losses": 5})
+	# 7d. RELEASED_BAD: < 15 pts (wins=4, draws=2, losses=2 => 14 pts)
+	gs.save_progress({"league_wins": 4, "league_losses": 2})
 	var ending_7d = gs.evaluate_j8_ending()
 	assert(ending_7d == "RELEASED_BAD", "Debe ser RELEASED_BAD, fue: " + ending_7d)
-	print("  -> RELEASED_BAD (3.º+): OK")
+	print("  -> RELEASED_BAD (<15 pts): OK")
 
 	# --------------------------------------------------------------------------
 	# 8. PRO_FIGHTER_J8: gana pelea final con combate >= 25

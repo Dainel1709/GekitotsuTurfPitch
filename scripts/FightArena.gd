@@ -311,16 +311,25 @@ func _finish_fight(player_won: bool) -> void:
 			gs.save_progress({})
 			print("[FightArena] Emboscada J6 superada. Continúa la liga.")
 
-		# Pelea Final J8: si pierde -> HOSPITAL_DREAM_BAD; si gana y combate >= 25 -> PRO_FIGHTER_J8
+		# Pelea Final J8: si pierde -> HOSPITAL_DREAM_BAD; si gana y (combate >= 25 o street_score > football_score) -> PRO_FIGHTER_J8
 		elif gs.story_phase == "FINAL_BRAWL":
+			gs.rebalance_story_tree(
+				int(cur_stats.get("combat", 0)),
+				int(cur_stats.get("discipline", 0)),
+				int(cur_stats.get("reputation", 0)),
+				gs.goals_scored,
+				gs.assists,
+				gs.red_cards_total,
+				int(cur_stats.get("matchday", 9))
+			)
 			if not player_won:
 				gs.set_story_ending("ENDING", "HOSPITAL_DREAM_BAD")
 				print("[FightArena] *** FINAL TRÁGICO: HOSPITAL_DREAM_BAD (perdió pelea final J8) ***")
-			elif player_won and int(cur_stats.get("combat", 0)) >= 25:
+			elif player_won and (int(cur_stats.get("combat", 0)) >= 25 or gs.street_score > gs.football_score):
 				gs.set_story_ending("ENDING", "PRO_FIGHTER_J8")
-				print("[FightArena] *** FINAL ALTERNATIVO: PRO_FIGHTER_J8 (combate=%d) ***" % int(cur_stats.get("combat", 0)))
+				print("[FightArena] *** FINAL ALTERNATIVO: PRO_FIGHTER_J8 (combate=%d, C=%d, F=%d) ***" % [int(cur_stats.get("combat", 0)), gs.street_score, gs.football_score])
 			else:
-				# Ganó la pelea final pero no tiene suficiente combate para ser peleador -> Evaluar final de liga
+				# Ganó la pelea final pero no cumple perfil callejero -> Evaluar final de liga
 				var league_ending = gs.evaluate_j8_ending()
 				gs.set_story_ending("ENDING", league_ending)
 				print("[FightArena] *** FINAL DE LIGA: %s ***" % league_ending)

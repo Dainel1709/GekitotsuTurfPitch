@@ -111,12 +111,12 @@ public:
      * │
      * └── [J8]    POST_J8_CHOICE
      *             ├── Ignorar pelea → evaluar liga
-     *             │   ├── 1.º + g+a>11 → GOLDEN_BOY_CHAMPION
-     *             │   ├── 1.º          → LEAGUE_CHAMPION
-     *             │   ├── 2.º          → PRO_RUNNER_UP
-     *             │   └── 3.º+         → RELEASED_BAD
-     *             └── Aceptar pelea → FINAL_BRAWL
-     *                 ├── Gana + comb>=25 → PRO_FIGHTER_J8
+     * │   ├── >=19 pts + g+a>11 → GOLDEN_BOY_CHAMPION
+     * │   ├── >=19 pts          → LEAGUE_CHAMPION
+     * │   ├── 15..18 pts        → PRO_RUNNER_UP
+     * │   └── <15 pts           → RELEASED_BAD
+     * └── Aceptar pelea → FINAL_BRAWL
+     *     ├── Gana + (comb>=25 o C>F) → PRO_FIGHTER_J8
      *                 ├── Gana + comb<25  → evaluar liga
      *                 └── Pierde          → HOSPITAL_DREAM_BAD
      */
@@ -186,7 +186,7 @@ public:
             "Despiertas en una cama de hospital sin poder sentir tus piernas. Los médicos te explican que todo lo vivido podría haber sido un sueño febril. El final más oscuro."
         });
 
-        // Final 4: PRO_FIGHTER_J8 (Alternativo J8) — gana pelea final con comb>=25
+        // Final 4: PRO_FIGHTER_J8 (Alternativo J8) — gana pelea final con comb>=25 o street_score > football_score
         root->right->right = new Node({
             "ENDING_PRO_FIGHTER_J8",
             "Final Alternativo: Peleador Profesional (J8)",

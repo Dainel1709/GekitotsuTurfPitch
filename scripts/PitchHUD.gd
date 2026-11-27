@@ -563,8 +563,8 @@ func _evaluate_early_branches_after_match(cur_stats: Dictionary) -> void:
 	var combat = int(cur_stats.get("combat", 0))
 	var matchday = int(cur_stats.get("matchday", 1))
 
-	# 1. Expulsión Temprana: disciplina <= 0 o red_cards_total >= 2 (en cualquier jornada 2-8)
-	if discipline <= 0 or gs.red_cards_total >= 2:
+	# 1. Expulsión Temprana (J2-J7): disciplina <= 0 o red_cards_total >= 2
+	if matchday >= 2 and (discipline <= 0 or gs.red_cards_total >= 2):
 		gs.set_story_ending("ENDING", "EXPELLED_EARLY")
 		print("[PitchHUD] *** FINAL TEMPRANO: EXPELLED_EARLY (disciplina=%d, rojas=%d) ***" % [discipline, gs.red_cards_total])
 		return

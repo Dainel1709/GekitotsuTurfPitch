@@ -240,7 +240,7 @@ func get_ending_description(end_id: String) -> String:
 		"HOSPITAL_DREAM_BAD":
 			return "%s recibe un golpe brutal en la cabeza durante una emboscada nocturna. Despierta en una cama de hospital, desorientado y sin poder sentir sus piernas. Los médicos le explican que todo lo que vivió — la cantera, los partidos, las peleas — podría haber sido un sueño febril. El final más oscuro." % [player_name]
 		"PRO_FIGHTER_J8":
-			return "Tras completar las 8 jornadas, %s elige enfrentar la emboscada final. Con una técnica de combate de élite (≥25), gana la pelea y decide dedicar su vida al combate profesional en vez del fútbol. Un camino distinto, pero igualmente glorioso." % [player_name]
+			return "Tras completar las 8 jornadas, %s elige enfrentar la pelea final. Con un combate de élite (≥25) o dominio callejero (C > F), gana el combate y dedica su vida al ring profesional. Un camino distinto, pero igualmente glorioso." % [player_name]
 		"GOLDEN_BOY_CHAMPION":
 			return "¡%s lo ha logrado todo! Campeón de liga, máximo goleador, líder en asistencias y ascenso directo al primer equipo de %s. La prensa lo llama el Golden Boy. Una leyenda nace en la cantera." % [player_name, academy_name]
 		"LEAGUE_CHAMPION":
@@ -256,28 +256,21 @@ func evaluate_j8_ending() -> String:
 	var gs_data = load_progress()
 	var wins = int(gs_data.get("league_wins", 0))
 	var losses = int(gs_data.get("league_losses", 0))
-	var draws = 8 - wins - losses
+	var draws = max(0, 8 - wins - losses)
 	var points = wins * 3 + draws
-	var combat = int(gs_data.get("combat", 0))
+	var rival_top_ga = 11
 	var total_ga = goals_scored + assists
 
-	# Determinar posición en liga (simplificado: >18 pts = 1.º, >12 pts = 2.º, resto = 3.º+)
-	var league_position = 3
-	if points >= 18:
-		league_position = 1
-	elif points >= 12:
-		league_position = 2
-
-	# GOLDEN_BOY_CHAMPION: 1.º + goles+asistencias > 11
-	if league_position == 1 and total_ga > 11:
+	# GOLDEN_BOY_CHAMPION: >= 19 pts (1.º) + (G+A) > rival_top_ga (11)
+	if points >= 19 and total_ga > rival_top_ga:
 		return "GOLDEN_BOY_CHAMPION"
-	# LEAGUE_CHAMPION: 1.º
-	elif league_position == 1:
+	# LEAGUE_CHAMPION: >= 19 pts (1.º)
+	elif points >= 19:
 		return "LEAGUE_CHAMPION"
-	# PRO_RUNNER_UP: 2.º
-	elif league_position == 2:
+	# PRO_RUNNER_UP: 15..18 pts (2.º)
+	elif points >= 15:
 		return "PRO_RUNNER_UP"
-	# RELEASED_BAD: 3.º+
+	# RELEASED_BAD: < 15 pts (3.º+)
 	else:
 		return "RELEASED_BAD"
 
@@ -318,7 +311,7 @@ func get_projected_ending(data_override: Dictionary = {}) -> String:
 	if md > 1 and (disc <= 0 or red_cards_total >= 2):
 		return "EXPELLED_EARLY"
 	if active_branch_id == "STREET_BRAWLER":
-		if comb >= 25:
+		if comb >= 25 or street_score > football_score:
 			return "PRO_FIGHTER_J8"
 		if comb >= 22:
 			return "PRO_FIGHTER_EARLY"

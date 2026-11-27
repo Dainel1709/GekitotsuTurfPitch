@@ -123,7 +123,7 @@ func update_ui() -> void:
 	var losses = int(meta_stats.get("league_losses", 0))
 	var draws = max(0, (matchday - 1) - wins - losses)
 	var points = wins * 3 + draws
-	var table_pos = 1 if points >= 18 else (2 if points >= 12 else 3)
+	var table_pos = 1 if points >= 19 else (2 if points >= 15 else 3)
 
 	var current_phase = gs.story_phase if gs else "LEAGUE"
 	var current_ending = gs.ending_id if gs else ""
@@ -402,9 +402,11 @@ func _show_ambush_j6_screen(gs, _meta_stats: Dictionary) -> void:
 
 func _show_post_j8_screen(gs, meta_stats: Dictionary) -> void:
 	var combat = int(meta_stats.get("combat", 0))
+	var s_score = gs.street_score if gs else 0
+	var f_score = gs.football_score if gs else 0
 	var pname = gs.player_name if gs else "Ryu"
 	if description_label:
-		if combat >= 25:
+		if combat >= 25 or s_score > f_score:
 			description_label.text = "[EL CRUCE DE CAMINOS FINAL — JORNADA 8]\n\n%s completa las 8 jornadas. A la salida del estadio te retan a una última pelea (Combate: %d). Si ganas podrás vivir del ring profesional, o puedes ignorarlos y esperar el veredicto de la liga." % [pname, combat]
 		else:
 			description_label.text = "[EL CRUCE DE CAMINOS FINAL — JORNADA 8]\n\n%s completa las 8 jornadas. Un grupo te reta a la salida del vestuario. ¿Aceptas la pelea o esperas el cierre de la liga?" % pname

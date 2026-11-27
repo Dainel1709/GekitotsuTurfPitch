@@ -324,7 +324,7 @@ func refresh_tree() -> void:
 	# Hijo Izquierdo de Jornada 8: GOLDEN BOY
 	rects["GOLDEN_BOY_CHAMPION"] = _create_node_card(
 		"GOLDEN_BOY_CHAMPION", Vector2(30, 1028), Vector2(330, 78),
-		"🏆 Premio Golden Boy", "1.º + Goles+Asist > 11", COLOR_ENDING_SUPREME, "GOLDEN_BOY_CHAMPION", is_golden_boy
+		"🏆 Premio Golden Boy", "≥ 19 pts (1.º) + G+A > 11", COLOR_ENDING_SUPREME, "GOLDEN_BOY_CHAMPION", is_golden_boy
 	)
 
 	# --- COLUMNA CENTRAL / HIJOS DERECHOS DE J2-J7 Y POST-J8 ---
@@ -334,15 +334,15 @@ func refresh_tree() -> void:
 	)
 	rects["MID_J4_OFFER"] = _create_node_card(
 		"MID_J4_OFFER", Vector2(430, 570), Vector2(330, 68),
-		"⚔ Oferta Promotor J4", "comb ≥ 22 tras 4.º partido", COLOR_BRANCH, "MID_J4_OFFER", early_j4
+		"⚔ Oferta Promotor J4", "J4 (md=5) + comb ≥ 22", COLOR_BRANCH, "MID_J4_OFFER", early_j4
 	)
 	rects["AMBUSH_J6_BRAWL"] = _create_node_card(
 		"AMBUSH_J6_BRAWL", Vector2(430, 746), Vector2(330, 68),
-		"🌙 Emboscada J6", "disc < 10 tras 6.º partido", COLOR_BRANCH, "AMBUSH_J6_BRAWL", early_j6
+		"🌙 Emboscada J6", "J6 (md=7) + disc < 10", COLOR_BRANCH, "AMBUSH_J6_BRAWL", early_j6
 	)
 	rects["POST_J8_CHOICE"] = _create_node_card(
 		"POST_J8_CHOICE", Vector2(430, 922), Vector2(330, 68),
-		"🏟 Bifurcación Final J8", "Finales balanceados DeSiGNAR", COLOR_BRANCH, "POST_J8_CHOICE", goes_to_j8_right
+		"🏟 Bifurcación Final J8", "Finales balanceados (V=3, E=1)", COLOR_BRANCH, "POST_J8_CHOICE", goes_to_j8_right
 	)
 	rects["FINAL_BRAWL"] = _create_node_card(
 		"FINAL_BRAWL", Vector2(430, 1110), Vector2(330, 68),
@@ -352,31 +352,31 @@ func refresh_tree() -> void:
 	# --- COLUMNA DERECHA (FINALES BALANCEADOS) ---
 	rects["PRO_FIGHTER_EARLY"] = _create_node_card(
 		"PRO_FIGHTER_EARLY", Vector2(820, 570), Vector2(340, 68),
-		"🥊 Peleador Pro Temprano", "Acepta oferta del promotor J4", COLOR_ENDING_ALT, "PRO_FIGHTER_EARLY", early_j4
+		"🥊 Peleador Pro Temprano", "Acepta oferta J4 (comb ≥ 22)", COLOR_ENDING_ALT, "PRO_FIGHTER_EARLY", early_j4
 	)
 	rects["HOSPITAL_DREAM_J6"] = _create_node_card(
 		"HOSPITAL_DREAM_J6", Vector2(820, 746), Vector2(340, 68),
-		"💀 Hospital / Sueño (J6)", "Pierde emboscada nocturna", COLOR_ENDING_BAD, "HOSPITAL_DREAM_BAD", early_j6
+		"💀 Hospital / Sueño (J6)", "Pierde emboscada J6 (disc < 10)", COLOR_ENDING_BAD, "HOSPITAL_DREAM_BAD", early_j6
 	)
 	rects["LEAGUE_CHAMPION"] = _create_node_card(
 		"LEAGUE_CHAMPION", Vector2(820, 860), Vector2(340, 68),
-		"🏆 Ganó la Liga", "1.º puesto con Copa", COLOR_ENDING_GOOD, "LEAGUE_CHAMPION", projected_ending == "LEAGUE_CHAMPION"
+		"🏆 Ganó la Liga", "≥ 19 pts (1.º puesto con Copa)", COLOR_ENDING_GOOD, "LEAGUE_CHAMPION", projected_ending == "LEAGUE_CHAMPION"
 	)
 	rects["PRO_RUNNER_UP"] = _create_node_card(
 		"PRO_RUNNER_UP", Vector2(820, 944), Vector2(340, 68),
-		"🥈 Quedó Segundo", "Ascenso Profesional", COLOR_ENDING_GOOD, "PRO_RUNNER_UP", projected_ending == "PRO_RUNNER_UP"
+		"🥈 Quedó Segundo", "15–18 pts (Ascenso Pro)", COLOR_ENDING_GOOD, "PRO_RUNNER_UP", projected_ending == "PRO_RUNNER_UP"
 	)
 	rects["RELEASED_BAD"] = _create_node_card(
 		"RELEASED_BAD", Vector2(820, 1028), Vector2(340, 68),
-		"❌ No pasó nada / Descartado", "3.º o peor en la liga", COLOR_ENDING_BAD, "RELEASED_BAD", projected_ending == "RELEASED_BAD"
+		"❌ No pasó nada / Descartado", "< 15 pts (3.º o peor)", COLOR_ENDING_BAD, "RELEASED_BAD", projected_ending == "RELEASED_BAD"
 	)
 	rects["PRO_FIGHTER_J8"] = _create_node_card(
 		"PRO_FIGHTER_J8", Vector2(820, 1112), Vector2(340, 68),
-		"🥊 Camino del Pelea", "Combate dominante (≥ 25)", COLOR_ENDING_ALT, "PRO_FIGHTER_J8", projected_ending == "PRO_FIGHTER_J8"
+		"🥊 Camino del Pelea", "Gana J8 + (comb ≥ 25 o C > F)", COLOR_ENDING_ALT, "PRO_FIGHTER_J8", projected_ending == "PRO_FIGHTER_J8"
 	)
 	rects["HOSPITAL_DREAM_J8"] = _create_node_card(
 		"HOSPITAL_DREAM_J8", Vector2(820, 1196), Vector2(340, 68),
-		"💀 Derrota Final — Hospital", "Sin piernas / Todo fue un sueño", COLOR_ENDING_BAD, "HOSPITAL_DREAM_BAD", (projected_ending == "HOSPITAL_DREAM_BAD" and not early_j6)
+		"💀 Derrota Final — Hospital", "Pierde pelea final J8", COLOR_ENDING_BAD, "HOSPITAL_DREAM_BAD", (projected_ending == "HOSPITAL_DREAM_BAD" and not early_j6)
 	)
 
 	# --- CONEXIONES IZQUIERDAS (EJE PRINCIPAL) ---
@@ -579,6 +579,25 @@ func _on_jump_pressed(target: String) -> void:
 		var is_ending = target in gs.VALID_ENDINGS
 
 		if is_ending:
+			match target:
+				"EXPELLED_EARLY":
+					_set_stats_for_jump({"matchday": 3, "discipline": 0, "combat": 10})
+				"PRO_FIGHTER_EARLY":
+					_set_stats_for_jump({"matchday": 5, "combat": 22, "discipline": 20})
+				"HOSPITAL_DREAM_BAD":
+					_set_stats_for_jump({"matchday": 7, "discipline": 5, "combat": 15})
+				"PRO_FIGHTER_J8":
+					_set_stats_for_jump({"matchday": 9, "combat": 25, "discipline": 15, "league_wins": 4, "league_losses": 2})
+				"GOLDEN_BOY_CHAMPION":
+					gs.goals_scored = max(gs.goals_scored, 8)
+					gs.assists = max(gs.assists, 5)
+					_set_stats_for_jump({"matchday": 9, "discipline": 45, "combat": 10, "league_wins": 7, "league_losses": 1})
+				"LEAGUE_CHAMPION":
+					_set_stats_for_jump({"matchday": 9, "discipline": 35, "combat": 10, "league_wins": 7, "league_losses": 1})
+				"PRO_RUNNER_UP":
+					_set_stats_for_jump({"matchday": 9, "discipline": 30, "combat": 10, "league_wins": 5, "league_losses": 3})
+				"RELEASED_BAD":
+					_set_stats_for_jump({"matchday": 9, "discipline": 20, "combat": 10, "league_wins": 2, "league_losses": 5})
 			gs.set_story_ending("ENDING", target)
 		elif target in gs.VALID_PHASES:
 			gs.story_phase = target

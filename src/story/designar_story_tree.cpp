@@ -51,7 +51,7 @@ std::string DeSiGNARStoryTree::rebalance_story_tree(int combate, int disciplina,
                 root->right->left->data.weight = (disciplina < 10 && matchday >= 6) ? 25 : 2;
             }
             if (root->right->right) {
-                root->right->right->data.weight = (combate >= 25 && matchday >= 8) ? 30 : 3;
+                root->right->right->data.weight = ((combate >= 25 || street_score > football_score) && matchday >= 8) ? 30 : 3;
             }
         }
     }
