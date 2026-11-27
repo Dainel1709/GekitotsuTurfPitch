@@ -11,6 +11,7 @@ onready var controls_button = $VBoxContainer/ControlsButton if has_node("VBoxCon
 onready var reset_button = $VBoxContainer/ResetButton if has_node("VBoxContainer/ResetButton") else null
 
 var story_manager = null
+var admin_panel = null
 
 const LEAGUE_RIVALS = [
 	"Barrio Norte FC",
@@ -43,7 +44,29 @@ func _ready() -> void:
 	# Enlace dinámico con la clase C++ GekitotsuStoryManager
 	_setup_story_manager()
 
+	# Crear Panel Admin (F12)
+	_setup_admin_panel()
+
 	update_ui()
+
+func _input(event) -> void:
+	if event is InputEventKey and event.pressed and event.scancode == KEY_F12:
+		_toggle_admin_panel()
+
+func _setup_admin_panel() -> void:
+	var admin_script = load("res://scripts/AdminStoryTree.gd")
+	if admin_script:
+		admin_panel = Control.new()
+		admin_panel.set_script(admin_script)
+		admin_panel.name = "AdminStoryPanel"
+		admin_panel.visible = false
+		add_child(admin_panel)
+
+func _toggle_admin_panel() -> void:
+	if admin_panel:
+		admin_panel.visible = not admin_panel.visible
+		if admin_panel.visible and admin_panel.has_method("refresh_tree"):
+			admin_panel.refresh_tree()
 
 func _setup_story_manager() -> void:
 	if ClassDB.class_exists("GekitotsuStoryManager"):
@@ -68,24 +91,55 @@ func get_current_rival_name(matchday: int) -> String:
 	return LEAGUE_RIVALS[idx]
 
 func update_ui() -> void:
+	var gs = get_node_or_null("/root/GameSettings")
 	var meta_stats = _get_persistent_stats()
-	var matchday: int = meta_stats.get("matchday", 1)
-	var wins: int = meta_stats.get("league_wins", 0)
-	var losses: int = meta_stats.get("league_losses", 0)
-	var rival_name: String = get_current_rival_name(matchday)
+	var matchday = int(meta_stats.get("matchday", 1))
+	var wins = int(meta_stats.get("league_wins", 0))
+	var losses = int(meta_stats.get("league_losses", 0))
+	var rival_name = get_current_rival_name(matchday)
 
+	# Comprobar si estamos en un estado narrativo especial
+	var current_phase = gs.story_phase if gs else "LEAGUE"
+	var current_ending = gs.ending_id if gs else ""
+
+	# --- FASE: ENDING (cualquier final alcanzado) ---
+	if current_phase == "ENDING" and current_ending != "":
+		_show_ending_screen(gs, meta_stats)
+		return
+
+	# --- FASE: MID_J4_OFFER (oferta del promotor de peleas) ---
+	if current_phase == "MID_J4_OFFER":
+		_show_j4_offer_screen(gs, meta_stats)
+		return
+
+	# --- FASE: AMBUSH_J6_BRAWL (emboscada nocturna J6) ---
+	if current_phase == "AMBUSH_J6_BRAWL":
+		_show_ambush_j6_screen(gs, meta_stats)
+		return
+
+	# --- FASE: POST_J8_CHOICE (elección post-temporada) ---
+	if current_phase == "POST_J8_CHOICE":
+		_show_post_j8_screen(gs, meta_stats)
+		return
+
+	# --- FASE: FINAL_BRAWL (pelea final J8) ---
+	if current_phase == "FINAL_BRAWL":
+		_show_final_brawl_screen(gs, meta_stats)
+		return
+
+	# --- MODO NORMAL: Liga y Hub ---
 	# Actualizar banner de jornada de liga
 	if league_label:
 		league_label.text = "Jornada %d — Rival: %s (Liga: %d V / %d D)" % [matchday, rival_name, wins, losses]
 
 	if story_manager:
-		var title: String = story_manager.get_current_title() if story_manager.has_method("get_current_title") else ""
-		var prompt: String = story_manager.get_current_prompt() if story_manager.has_method("get_current_prompt") else ""
-		var discipline: int = story_manager.get_discipline_points() if story_manager.has_method("get_discipline_points") else meta_stats.get("discipline", 0)
-		var combat: int = story_manager.get_combat_technique() if story_manager.has_method("get_combat_technique") else meta_stats.get("combat", 0)
-		var money: int = story_manager.get_money() if story_manager.has_method("get_money") else meta_stats.get("money", 0)
-		var reputation: int = story_manager.get_street_reputation() if story_manager.has_method("get_street_reputation") else meta_stats.get("reputation", 0)
-		var is_over: bool = story_manager.is_career_over() if story_manager.has_method("is_career_over") else false
+		var title = story_manager.get_current_title() if story_manager.has_method("get_current_title") else ""
+		var prompt = story_manager.get_current_prompt() if story_manager.has_method("get_current_prompt") else ""
+		var discipline = story_manager.get_discipline_points() if story_manager.has_method("get_discipline_points") else meta_stats.get("discipline", 0)
+		var combat = story_manager.get_combat_technique() if story_manager.has_method("get_combat_technique") else meta_stats.get("combat", 0)
+		var money = story_manager.get_money() if story_manager.has_method("get_money") else meta_stats.get("money", 0)
+		var reputation = story_manager.get_street_reputation() if story_manager.has_method("get_street_reputation") else meta_stats.get("reputation", 0)
+		var is_over = story_manager.is_career_over() if story_manager.has_method("is_career_over") else false
 
 		if description_label:
 			description_label.text = "[%s]\n\n%s" % [title, prompt]
@@ -97,7 +151,7 @@ func update_ui() -> void:
 				left_button.visible = false
 			if right_button:
 				right_button.visible = false
-			var ending: String = story_manager.get_ending_summary() if story_manager.has_method("get_ending_summary") else ""
+			var ending = story_manager.get_ending_summary() if story_manager.has_method("get_ending_summary") else ""
 			if description_label:
 				description_label.text += "\n\n*** ¡FIN DEL CAMINO / DESENLACE A LOS 18 AÑOS ALCANZADO! ***\n" + ending
 		else:
@@ -105,8 +159,8 @@ func update_ui() -> void:
 				left_button.visible = true
 			if right_button:
 				right_button.visible = true
-			var left_text: String = story_manager.get_discipline_option_text() if story_manager.has_method("get_discipline_option_text") else ""
-			var right_text: String = story_manager.get_street_option_text() if story_manager.has_method("get_street_option_text") else ""
+			var left_text = story_manager.get_discipline_option_text() if story_manager.has_method("get_discipline_option_text") else ""
+			var right_text = story_manager.get_street_option_text() if story_manager.has_method("get_street_option_text") else ""
 			if left_button:
 				left_button.text = left_text if left_text != "" else "Elegir Club / Disciplina (+Disciplina Deportiva)"
 			if right_button:
@@ -126,8 +180,159 @@ func update_ui() -> void:
 		if stats_label:
 			stats_label.text = "Disciplina Deportiva: %d | Combate: %d | Dinero: $%d | Reputación en Asfalto: %d" % [d, c, m, r]
 
+	# Mostrar/ocultar botones según la fase
+	_update_buttons_for_phase(current_phase, matchday)
 	_update_controls_button_text()
 	_setup_focus()
+
+# --- Pantallas Narrativas Especiales ---
+
+func _show_ending_screen(gs, meta_stats: Dictionary) -> void:
+	var end_id = gs.ending_id if gs else ""
+	var end_title = gs.get_ending_title(end_id) if gs and gs.has_method("get_ending_title") else "Final"
+	var end_desc = gs.get_ending_description(end_id) if gs and gs.has_method("get_ending_description") else ""
+
+	if league_label:
+		league_label.text = "*** FIN DE LA HISTORIA ***"
+	if description_label:
+		description_label.text = "[%s]\n\n%s\n\n*** ¡FIN DEL CAMINO! ***" % [end_title, end_desc]
+	if stats_label:
+		var d = meta_stats.get("discipline", 0)
+		var c = meta_stats.get("combat", 0)
+		var m = meta_stats.get("money", 0)
+		var r = meta_stats.get("reputation", 0)
+		stats_label.text = "FINAL: %s | Disciplina: %d | Combate: %d | Dinero: $%d | Reputación: %d" % [end_id, d, c, m, r]
+
+	# Ocultar todos los botones excepto Reiniciar
+	if left_button:
+		left_button.visible = false
+	if right_button:
+		right_button.visible = false
+	if match_button:
+		match_button.visible = false
+	if fight_button:
+		fight_button.visible = false
+	if controls_button:
+		controls_button.visible = false
+	if reset_button:
+		reset_button.visible = true
+		reset_button.text = "Reiniciar Trayectoria (Nueva Temporada)"
+	_setup_focus()
+
+func _show_j4_offer_screen(gs, meta_stats: Dictionary) -> void:
+	if league_label:
+		league_label.text = "*** OFERTA ESPECIAL — JORNADA 4 ***"
+	if description_label:
+		var pname = gs.player_name if gs else "Ryu"
+		description_label.text = "[El Promotor de las Sombras]\n\nTras el 4.º partido, un hombre misterioso se acerca a %s en el vestuario.\n\n\"He visto tus peleas, chico. Tienes talento real. Te ofrezco un contrato como peleador profesional. Olvida el fútbol, esto paga más y eres mejor con los puños.\"\n\n¿Qué decides?" % pname
+
+	if left_button:
+		left_button.visible = true
+		left_button.text = "Rechazar y seguir en la cantera"
+	if right_button:
+		right_button.visible = true
+		right_button.text = "Aceptar contrato de peleador (Dejar fútbol)"
+	if match_button:
+		match_button.visible = false
+	if fight_button:
+		fight_button.visible = false
+	if controls_button:
+		controls_button.visible = false
+
+	_update_stats_label(meta_stats)
+	_setup_focus()
+
+func _show_ambush_j6_screen(gs, meta_stats: Dictionary) -> void:
+	if league_label:
+		league_label.text = "*** EMBOSCADA NOCTURNA — JORNADA 6 ***"
+	if description_label:
+		var pname = gs.player_name if gs else "Ryu"
+		description_label.text = "[Emboscada en el Callejón]\n\nDe camino a casa tras el 6.º partido, %s es interceptado por pandilleros que buscan venganza. Con tu disciplina por los suelos, no puedes evitar el enfrentamiento.\n\n¡Prepárate para la pelea!" % pname
+
+	if left_button:
+		left_button.visible = false
+	if right_button:
+		right_button.visible = false
+	if match_button:
+		match_button.visible = false
+	if fight_button:
+		fight_button.visible = true
+		fight_button.text = "¡Enfrentar la Emboscada Nocturna!"
+	if controls_button:
+		controls_button.visible = false
+
+	_update_stats_label(meta_stats)
+	_setup_focus()
+
+func _show_post_j8_screen(gs, meta_stats: Dictionary) -> void:
+	var combat = int(meta_stats.get("combat", 0))
+
+	if league_label:
+		league_label.text = "*** FIN DE TEMPORADA — JORNADA 8 COMPLETADA ***"
+	if description_label:
+		var pname = gs.player_name if gs else "Ryu"
+		if combat >= 25:
+			description_label.text = "[El Cruce de Caminos Final]\n\n%s ha completado las 8 jornadas de liga. En la puerta del vestuario, un grupo de pandilleros del barrio le reta a una última pelea.\n\nCon tu técnica de combate excepcional (%d), podrías dedicarte al ring profesional si ganas. ¿O prefieres ignorarlos y esperar el veredicto de la liga?" % [pname, combat]
+		else:
+			description_label.text = "[El Cruce de Caminos Final]\n\n%s ha completado las 8 jornadas de liga. Un grupo de pandilleros le reta en la salida. ¿Acepta la pelea o ignora la provocación y espera los resultados de la liga?" % pname
+
+	if left_button:
+		left_button.visible = true
+		left_button.text = "Ignorar la pelea (Esperar resultados de liga)"
+	if right_button:
+		right_button.visible = true
+		right_button.text = "Aceptar la pelea final"
+	if match_button:
+		match_button.visible = false
+	if fight_button:
+		fight_button.visible = false
+	if controls_button:
+		controls_button.visible = false
+
+	_update_stats_label(meta_stats)
+	_setup_focus()
+
+func _show_final_brawl_screen(gs, meta_stats: Dictionary) -> void:
+	if league_label:
+		league_label.text = "*** PELEA FINAL — DESTINO EN JUEGO ***"
+	if description_label:
+		description_label.text = "[La Pelea Definitiva]\n\n¡Es hora de demostrar de qué estás hecho! Si pierdes, las consecuencias serán devastadoras..."
+
+	if left_button:
+		left_button.visible = false
+	if right_button:
+		right_button.visible = false
+	if match_button:
+		match_button.visible = false
+	if fight_button:
+		fight_button.visible = true
+		fight_button.text = "¡PELEAR! (Pelea Final)"
+	if controls_button:
+		controls_button.visible = false
+
+	_update_stats_label(meta_stats)
+	_setup_focus()
+
+func _update_stats_label(meta_stats: Dictionary) -> void:
+	if stats_label:
+		var d = meta_stats.get("discipline", 0)
+		var c = meta_stats.get("combat", 0)
+		var m = meta_stats.get("money", 0)
+		var r = meta_stats.get("reputation", 0)
+		stats_label.text = "Disciplina Deportiva: %d | Combate: %d | Dinero: $%d | Reputación en Asfalto: %d" % [d, c, m, r]
+
+func _update_buttons_for_phase(phase: String, matchday: int) -> void:
+	# En modo LEAGUE normal, mostrar todos los botones habituales
+	if phase != "LEAGUE":
+		return
+	if match_button:
+		match_button.visible = (matchday <= 8)
+	if fight_button:
+		fight_button.visible = true
+	if controls_button:
+		controls_button.visible = true
+	if reset_button:
+		reset_button.visible = true
 
 func _get_persistent_stats() -> Dictionary:
 	if not get_tree().root.has_meta("gtp_stats"):
@@ -150,6 +355,25 @@ func _save_current_state() -> void:
 		gs.save_progress(s)
 
 func _on_left_choice_pressed() -> void:
+	var gs = get_node_or_null("/root/GameSettings")
+	var current_phase = gs.story_phase if gs else "LEAGUE"
+
+	# Manejo especial para MID_J4_OFFER: Rechazar => volver a LEAGUE
+	if current_phase == "MID_J4_OFFER":
+		gs.story_phase = "LEAGUE"
+		gs.save_progress({})
+		print("[MainGame] Oferta del promotor RECHAZADA. Continúa la liga.")
+		update_ui()
+		return
+
+	# Manejo especial para POST_J8_CHOICE: Ignorar pelea => evaluar final de liga
+	if current_phase == "POST_J8_CHOICE":
+		var league_ending = gs.evaluate_j8_ending()
+		gs.set_story_ending("ENDING", league_ending)
+		print("[MainGame] Pelea ignorada. Final de liga: %s" % league_ending)
+		update_ui()
+		return
+
 	if story_manager and story_manager.has_method("choose_discipline"):
 		story_manager.choose_discipline()
 	else:
@@ -162,6 +386,24 @@ func _on_left_choice_pressed() -> void:
 	update_ui()
 
 func _on_right_choice_pressed() -> void:
+	var gs = get_node_or_null("/root/GameSettings")
+	var current_phase = gs.story_phase if gs else "LEAGUE"
+
+	# Manejo especial para MID_J4_OFFER: Aceptar => PRO_FIGHTER_EARLY
+	if current_phase == "MID_J4_OFFER":
+		gs.set_story_ending("ENDING", "PRO_FIGHTER_EARLY")
+		print("[MainGame] Oferta del promotor ACEPTADA. Final: PRO_FIGHTER_EARLY")
+		update_ui()
+		return
+
+	# Manejo especial para POST_J8_CHOICE: Aceptar pelea => FINAL_BRAWL
+	if current_phase == "POST_J8_CHOICE":
+		gs.story_phase = "FINAL_BRAWL"
+		gs.save_progress({})
+		print("[MainGame] Pelea final aceptada. Fase: FINAL_BRAWL")
+		update_ui()
+		return
+
 	if story_manager and story_manager.has_method("choose_street"):
 		story_manager.choose_street()
 	else:
@@ -178,6 +420,12 @@ func _on_match_pressed() -> void:
 	get_tree().change_scene("res://scenes/FootballPitch.tscn")
 
 func _on_fight_pressed() -> void:
+	var gs = get_node_or_null("/root/GameSettings")
+	# Si es emboscada J6 o pelea final, marcar la fase correspondiente para FightArena
+	if gs and gs.story_phase == "AMBUSH_J6_BRAWL":
+		print("[MainGame] Iniciando emboscada nocturna J6...")
+	elif gs and gs.story_phase == "FINAL_BRAWL":
+		print("[MainGame] Iniciando pelea final J8...")
 	get_tree().change_scene("res://scenes/FightArena.tscn")
 
 func _on_controls_pressed() -> void:
@@ -210,14 +458,14 @@ func _on_reset_pressed() -> void:
 
 func _update_controls_button_text() -> void:
 	if controls_button:
-		var scheme_str: String = "Clásico (FIFA)"
+		var scheme_str = "Clásico (FIFA)"
 		var gs = get_node_or_null("/root/GameSettings")
 		if gs and gs.has_method("get_scheme_short_name"):
 			scheme_str = gs.get_scheme_short_name()
 		controls_button.text = "Controles Fútbol: " + scheme_str
 
 func _setup_focus() -> void:
-	var active_buttons: Array = []
+	var active_buttons = []
 	if left_button and left_button.visible:
 		active_buttons.append(left_button)
 	if right_button and right_button.visible:
@@ -233,9 +481,9 @@ func _setup_focus() -> void:
 
 	var count = active_buttons.size()
 	for i in range(count):
-		var btn: Button = active_buttons[i]
-		var prev_btn: Button = active_buttons[(i - 1 + count) % count]
-		var next_btn: Button = active_buttons[(i + 1) % count]
+		var btn = active_buttons[i]
+		var prev_btn = active_buttons[(i - 1 + count) % count]
+		var next_btn = active_buttons[(i + 1) % count]
 		btn.focus_neighbour_top = prev_btn.get_path()
 		btn.focus_neighbour_bottom = next_btn.get_path()
 

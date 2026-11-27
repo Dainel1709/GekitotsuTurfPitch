@@ -298,6 +298,33 @@ func _finish_fight(player_won: bool) -> void:
 	cur_stats["day"] += 1
 	get_tree().root.set_meta("gtp_stats", cur_stats)
 
+	# --- Evaluar consecuencias narrativas de la pelea callejera ---
+	var gs = get_node_or_null("/root/GameSettings")
+	if gs:
+		# Emboscada J6: si pierde y es fase AMBUSH_J6_BRAWL -> HOSPITAL_DREAM_BAD
+		if gs.story_phase == "AMBUSH_J6_BRAWL" and not player_won:
+			gs.set_story_ending("ENDING", "HOSPITAL_DREAM_BAD")
+			print("[FightArena] *** FINAL TRÁGICO: HOSPITAL_DREAM_BAD (perdió emboscada J6) ***")
+		elif gs.story_phase == "AMBUSH_J6_BRAWL" and player_won:
+			# Sobrevivió la emboscada J6, continúa la liga
+			gs.story_phase = "LEAGUE"
+			gs.save_progress({})
+			print("[FightArena] Emboscada J6 superada. Continúa la liga.")
+
+		# Pelea Final J8: si pierde -> HOSPITAL_DREAM_BAD; si gana y combate >= 25 -> PRO_FIGHTER_J8
+		elif gs.story_phase == "FINAL_BRAWL":
+			if not player_won:
+				gs.set_story_ending("ENDING", "HOSPITAL_DREAM_BAD")
+				print("[FightArena] *** FINAL TRÁGICO: HOSPITAL_DREAM_BAD (perdió pelea final J8) ***")
+			elif player_won and int(cur_stats.get("combat", 0)) >= 25:
+				gs.set_story_ending("ENDING", "PRO_FIGHTER_J8")
+				print("[FightArena] *** FINAL ALTERNATIVO: PRO_FIGHTER_J8 (combate=%d) ***" % int(cur_stats.get("combat", 0)))
+			else:
+				# Ganó la pelea final pero no tiene suficiente combate para ser peleador -> Evaluar final de liga
+				var league_ending = gs.evaluate_j8_ending()
+				gs.set_story_ending("ENDING", league_ending)
+				print("[FightArena] *** FINAL DE LIGA: %s ***" % league_ending)
+
 	# Regresar automáticamente a MainGame.tscn tras 2 segundos
 	yield(get_tree().create_timer(2.0), "timeout")
 	get_tree().change_scene("res://scenes/MainGame.tscn")

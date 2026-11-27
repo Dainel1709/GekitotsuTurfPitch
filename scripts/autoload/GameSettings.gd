@@ -30,6 +30,41 @@ const SDL_PLAYSTATION_MAPPINGS = [
 
 const SAVE_PATH: String = "user://savegame.json"
 
+# --- Estado Narrativo del Árbol de Decisiones ---
+# Fases posibles: "CREATE_PLAYER", "PROLOGUE_HIT", "SELECT_ACADEMY", "LEAGUE",
+#   "MID_J4_OFFER", "AMBUSH_J6_BRAWL", "POST_J8_CHOICE", "FINAL_BRAWL", "ENDING"
+var story_phase: String = "LEAGUE"
+var ending_id: String = ""
+var red_cards_total: int = 0
+var player_name: String = "Ryu"
+var academy_name: String = "Estudiantes de Mérida"
+var goals_scored: int = 0
+var assists: int = 0
+
+# Ending IDs válidos
+const VALID_ENDINGS = [
+	"EXPELLED_EARLY",
+	"PRO_FIGHTER_EARLY",
+	"HOSPITAL_DREAM_BAD",
+	"PRO_FIGHTER_J8",
+	"GOLDEN_BOY_CHAMPION",
+	"LEAGUE_CHAMPION",
+	"PRO_RUNNER_UP",
+	"RELEASED_BAD"
+]
+
+const VALID_PHASES = [
+	"CREATE_PLAYER",
+	"PROLOGUE_HIT",
+	"SELECT_ACADEMY",
+	"LEAGUE",
+	"MID_J4_OFFER",
+	"AMBUSH_J6_BRAWL",
+	"POST_J8_CHOICE",
+	"FINAL_BRAWL",
+	"ENDING"
+]
+
 func _ready() -> void:
 	pause_mode = Node.PAUSE_MODE_PROCESS
 	_register_sdl_mappings()
@@ -52,10 +87,17 @@ func get_default_save_data() -> Dictionary:
 		"combat": 0,
 		"money": 0,
 		"reputation": 0,
-		"control_scheme": current_control_scheme
+		"control_scheme": current_control_scheme,
+		"story_phase": "LEAGUE",
+		"ending_id": "",
+		"red_cards_total": 0,
+		"player_name": "Ryu",
+		"academy_name": "Estudiantes de Mérida",
+		"goals_scored": 0,
+		"assists": 0
 	}
 
-func load_progress() -> Dictionary:
+func _read_save_dict() -> Dictionary:
 	var data: Dictionary = get_default_save_data()
 	var f = File.new()
 	if not f.file_exists(SAVE_PATH):
@@ -69,16 +111,43 @@ func load_progress() -> Dictionary:
 	if parse_res.error == OK and typeof(parse_res.result) == TYPE_DICTIONARY:
 		for k in parse_res.result.keys():
 			data[k] = parse_res.result[k]
-		if data.has("control_scheme"):
-			current_control_scheme = int(data["control_scheme"])
+	return data
+
+func load_progress() -> Dictionary:
+	var data: Dictionary = _read_save_dict()
+	if data.has("control_scheme"):
+		current_control_scheme = int(data["control_scheme"])
+	# Sincronizar variables narrativas desde el guardado
+	if data.has("story_phase"):
+		story_phase = str(data["story_phase"])
+	if data.has("ending_id"):
+		ending_id = str(data["ending_id"])
+	if data.has("red_cards_total"):
+		red_cards_total = int(data["red_cards_total"])
+	if data.has("player_name"):
+		player_name = str(data["player_name"])
+	if data.has("academy_name"):
+		academy_name = str(data["academy_name"])
+	if data.has("goals_scored"):
+		goals_scored = int(data["goals_scored"])
+	if data.has("assists"):
+		assists = int(data["assists"])
 	return data
 
 func save_progress(new_fields: Dictionary = {}) -> bool:
-	var data: Dictionary = load_progress()
+	var data: Dictionary = _read_save_dict()
 	for k in new_fields.keys():
 		data[k] = new_fields[k]
 	if not data.has("control_scheme"):
 		data["control_scheme"] = current_control_scheme
+	# Siempre persistir el estado narrativo actual
+	data["story_phase"] = story_phase
+	data["ending_id"] = ending_id
+	data["red_cards_total"] = red_cards_total
+	data["player_name"] = player_name
+	data["academy_name"] = academy_name
+	data["goals_scored"] = goals_scored
+	data["assists"] = assists
 	
 	var f = File.new()
 	var err = f.open(SAVE_PATH, File.WRITE)
@@ -96,7 +165,93 @@ func reset_save() -> void:
 	var dir = Directory.new()
 	if dir.file_exists(SAVE_PATH):
 		dir.remove(SAVE_PATH)
+	story_phase = "LEAGUE"
+	ending_id = ""
+	red_cards_total = 0
+	player_name = "Ryu"
+	academy_name = "Estudiantes de Mérida"
+	goals_scored = 0
+	assists = 0
 	print("[GameSettings] Archivo de guardado reiniciado.")
+
+# --- Utilidades Narrativas ---
+
+func set_story_ending(phase: String, end_id: String) -> void:
+	story_phase = phase
+	ending_id = end_id
+	save_progress({})
+	print("[GameSettings] Fase narrativa: %s | Final: %s" % [phase, end_id])
+
+func get_ending_title(end_id: String) -> String:
+	match end_id:
+		"EXPELLED_EARLY":
+			return "Final Malo Temprano: Expulsado por Indisciplina"
+		"PRO_FIGHTER_EARLY":
+			return "Final Alternativo Temprano: Peleador Profesional (J4)"
+		"HOSPITAL_DREAM_BAD":
+			return "Final Trágico: Hospital — Todo Fue un Sueño"
+		"PRO_FIGHTER_J8":
+			return "Final Alternativo: Peleador Profesional (J8)"
+		"GOLDEN_BOY_CHAMPION":
+			return "Final Supremo: Golden Boy Campeón"
+		"LEAGUE_CHAMPION":
+			return "Final Bueno: Campeón de Liga"
+		"PRO_RUNNER_UP":
+			return "Final Bueno: Subcampeón y Ascenso"
+		"RELEASED_BAD":
+			return "Final Malo: Liberado del Club"
+		_:
+			return "Final Desconocido"
+
+func get_ending_description(end_id: String) -> String:
+	match end_id:
+		"EXPELLED_EARLY":
+			return "%s ha sido expulsado de la cantera de %s por indisciplina reiterada. Las tarjetas rojas y la falta de disciplina deportiva han truncado su carrera antes de completar la temporada. El sueño del fútbol profesional se desvanece en el asfalto." % [player_name, academy_name]
+		"PRO_FIGHTER_EARLY":
+			return "Tras el 4.º partido, un promotor de peleas clandestinas ofreció a %s un contrato como peleador profesional. Con una técnica de combate excepcional, %s decide abandonar el fútbol y dedicarse al mundo de las peleas. La cantera pierde un talento, pero el ring gana una estrella." % [player_name, player_name]
+		"HOSPITAL_DREAM_BAD":
+			return "%s recibe un golpe brutal en la cabeza durante una emboscada nocturna. Despierta en una cama de hospital, desorientado y sin poder sentir sus piernas. Los médicos le explican que todo lo que vivió — la cantera, los partidos, las peleas — podría haber sido un sueño febril. El final más oscuro." % [player_name]
+		"PRO_FIGHTER_J8":
+			return "Tras completar las 8 jornadas, %s elige enfrentar la emboscada final. Con una técnica de combate de élite (≥25), gana la pelea y decide dedicar su vida al combate profesional en vez del fútbol. Un camino distinto, pero igualmente glorioso." % [player_name]
+		"GOLDEN_BOY_CHAMPION":
+			return "¡%s lo ha logrado todo! Campeón de liga, máximo goleador, líder en asistencias y ascenso directo al primer equipo de %s. La prensa lo llama el Golden Boy. Una leyenda nace en la cantera." % [player_name, academy_name]
+		"LEAGUE_CHAMPION":
+			return "¡%s levanta la Copa de la Liga con %s! Primer puesto en la temporada y ascenso profesional al primer equipo. Un canterano que cumplió su sueño." % [player_name, academy_name]
+		"PRO_RUNNER_UP":
+			return "%s termina la temporada como subcampeón con %s. Un excelente rendimiento que le vale el ascenso profesional al primer equipo. El camino continúa." % [player_name, academy_name]
+		"RELEASED_BAD":
+			return "%s completa las 8 jornadas pero queda en 3.º lugar o inferior. %s decide no renovar su contrato. El sueño de la cantera se apaga, pero la calle siempre espera." % [player_name, academy_name]
+		_:
+			return "Desenlace no reconocido."
+
+func evaluate_j8_ending() -> String:
+	var gs_data = load_progress()
+	var wins = int(gs_data.get("league_wins", 0))
+	var losses = int(gs_data.get("league_losses", 0))
+	var draws = 8 - wins - losses
+	var points = wins * 3 + draws
+	var combat = int(gs_data.get("combat", 0))
+	var total_ga = goals_scored + assists
+
+	# Determinar posición en liga (simplificado: >18 pts = 1.º, >12 pts = 2.º, resto = 3.º+)
+	var league_position = 3
+	if points >= 18:
+		league_position = 1
+	elif points >= 12:
+		league_position = 2
+
+	# GOLDEN_BOY_CHAMPION: 1.º + goles+asistencias > 11
+	if league_position == 1 and total_ga > 11:
+		return "GOLDEN_BOY_CHAMPION"
+	# LEAGUE_CHAMPION: 1.º
+	elif league_position == 1:
+		return "LEAGUE_CHAMPION"
+	# PRO_RUNNER_UP: 2.º
+	elif league_position == 2:
+		return "PRO_RUNNER_UP"
+	# RELEASED_BAD: 3.º+
+	else:
+		return "RELEASED_BAD"
 
 func _register_sdl_mappings() -> void:
 	for mapping in SDL_PLAYSTATION_MAPPINGS:

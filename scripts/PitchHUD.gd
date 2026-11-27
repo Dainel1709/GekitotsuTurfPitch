@@ -450,6 +450,9 @@ func _finish_match_90_minutes() -> void:
 
 	print("[PitchHUD] Partido de 90 minutos concluido (%d - %d). Regresando a MainGame tras 2.5s..." % [p_score, opp_score])
 
+	# Evaluar ramas tempranas y transiciones narrativas
+	_evaluate_early_branches_after_match(cur_stats)
+
 	# 4. Regreso a MainGame.tscn tras 2.5 segundos
 	yield(get_tree().create_timer(2.5, true), "timeout")
 	get_tree().paused = false
@@ -483,11 +486,16 @@ func finish_match_disqualification() -> void:
 	cur_stats["day"] = cur_stats.get("day", 1) + 1
 	get_tree().root.set_meta("gtp_stats", cur_stats)
 
+	# --- Incrementar tarjetas rojas acumuladas ---
 	var gs = get_node_or_null("/root/GameSettings")
-	if gs and gs.has_method("save_progress"):
-		gs.save_progress(cur_stats)
-
-	print("[PitchHUD] Partido finalizado por descalificación / Tarjeta Roja.")
+	if gs:
+		gs.red_cards_total += 1
+		if gs.has_method("save_progress"):
+			gs.save_progress(cur_stats)
+		# Evaluar si corresponde final por expulsión temprana
+		_evaluate_early_branches_after_match(cur_stats)
+	else:
+		print("[PitchHUD] Partido finalizado por descalificación / Tarjeta Roja.")
 
 func _resolve_mechanics() -> void:
 	var players = get_tree().get_nodes_in_group("player")
@@ -502,3 +510,45 @@ func _resolve_mechanics() -> void:
 		if node:
 			mechanics = node
 			return
+
+
+# --- Evaluación de Ramas Tempranas del Árbol Narrativo ---
+func _evaluate_early_branches_after_match(cur_stats: Dictionary) -> void:
+	var gs = get_node_or_null("/root/GameSettings")
+	if not gs:
+		return
+
+	# Si ya hay un final activo, no reevaluar
+	if gs.story_phase == "ENDING":
+		return
+
+	var discipline = int(cur_stats.get("discipline", 0))
+	var combat = int(cur_stats.get("combat", 0))
+	var matchday = int(cur_stats.get("matchday", 1))
+
+	# 1. Expulsión Temprana: disciplina <= 0 o red_cards_total >= 2 (en cualquier jornada 2-8)
+	if discipline <= 0 or gs.red_cards_total >= 2:
+		gs.set_story_ending("ENDING", "EXPELLED_EARLY")
+		print("[PitchHUD] *** FINAL TEMPRANO: EXPELLED_EARLY (disciplina=%d, rojas=%d) ***" % [discipline, gs.red_cards_total])
+		return
+
+	# 2. Oferta del Promotor J4: tras completar el 4.º partido (matchday ahora es 5) y combate >= 22
+	if matchday == 5 and combat >= 22:
+		gs.story_phase = "MID_J4_OFFER"
+		gs.save_progress({})
+		print("[PitchHUD] *** BIFURCACIÓN J4: MID_J4_OFFER (combate=%d) ***" % combat)
+		return
+
+	# 3. Emboscada J6: tras completar el 6.º partido (matchday ahora es 7) y disciplina < 10
+	if matchday == 7 and discipline < 10:
+		gs.story_phase = "AMBUSH_J6_BRAWL"
+		gs.save_progress({})
+		print("[PitchHUD] *** BIFURCACIÓN J6: AMBUSH_J6_BRAWL (disciplina=%d) ***" % discipline)
+		return
+
+	# 4. Fin de temporada: tras completar el 8.º partido (matchday ahora es 9)
+	if matchday >= 9:
+		gs.story_phase = "POST_J8_CHOICE"
+		gs.save_progress({})
+		print("[PitchHUD] *** BIFURCACIÓN J8: POST_J8_CHOICE ***")
+		return

@@ -82,9 +82,31 @@ public:
 
     /**
      * @brief Construye la jerarquía completa del árbol de decisiones.
-     * Nivel 1: El Dilema Inicial (Día 1)
-     * Nivel 2: Bifurcación Cantera vs. Pandilla
-     * Nivel 3: Nodos Hoja con los 4 Finales Sorpresa a los 18 años
+     * Árbol ramificado real con finales anticipados (J2-J7) y finales de cierre (J8).
+     *
+     * Estructura del árbol:
+     * ┌── CREATE_PLAYER → PROLOGUE_HIT → SELECT_ACADEMY → LEAGUE
+     * │
+     * ├── [J2-J7] EXPELLED_EARLY          (disc <= 0 ó red_cards >= 2)
+     * │
+     * ├── [J4]    MID_J4_OFFER
+     * │           ├── Rechazar → continúa LEAGUE
+     * │           └── Aceptar → PRO_FIGHTER_EARLY
+     * │
+     * ├── [J6]    AMBUSH_J6_BRAWL
+     * │           ├── Gana → continúa LEAGUE
+     * │           └── Pierde → HOSPITAL_DREAM_BAD
+     * │
+     * └── [J8]    POST_J8_CHOICE
+     *             ├── Ignorar pelea → evaluar liga
+     *             │   ├── 1.º + g+a>11 → GOLDEN_BOY_CHAMPION
+     *             │   ├── 1.º          → LEAGUE_CHAMPION
+     *             │   ├── 2.º          → PRO_RUNNER_UP
+     *             │   └── 3.º+         → RELEASED_BAD
+     *             └── Aceptar pelea → FINAL_BRAWL
+     *                 ├── Gana + comb>=25 → PRO_FIGHTER_J8
+     *                 ├── Gana + comb<25  → evaluar liga
+     *                 └── Pierde          → HOSPITAL_DREAM_BAD
      */
     void build_default_career_tree() {
         // --- Nivel 0: Raíz (Inicio de trayectoria) ---
@@ -123,42 +145,42 @@ public:
             ""
         });
 
-        // --- Nivel 2 (Finales Sorpresa): Hojas de la Rama Disciplinada ---
-        // Hoja Izquierda-Izquierda: Balón de Oro / Élite
+        // --- Nivel 2: Finales del Árbol Narrativo Completo ---
+
+        // Final 1: EXPELLED_EARLY (Malo Temprano J2-J7) — disc<=0 ó red_cards>=2
         root->left->left = new Node({
-            "ENDING_PRO_LEGEND",
-            "Final 1: El Prodigio de la Élite",
-            "Cumples 18 años firmando con el primer equipo profesional.",
+            "ENDING_EXPELLED_EARLY",
+            "Final Malo Temprano: Expulsado por Indisciplina",
+            "La cantera te expulsa por indisciplina reiterada antes de completar la temporada.",
             "", StatModifier(), "", StatModifier(),
-            "Has alcanzado el estrellato internacional con disciplina inquebrantable."
+            "Las tarjetas rojas y la falta de disciplina deportiva han truncado tu carrera. El sueño del fútbol profesional se desvanece en el asfalto."
         });
 
-        // Hoja Izquierda-Derecha: El Gladiador del Césped
+        // Final 2: PRO_FIGHTER_EARLY (Alternativo Temprano J4) — comb>=22 y acepta oferta
         root->left->right = new Node({
-            "ENDING_PITCH_GLADIATOR",
-            "Final 2: El Gladiador del Césped",
-            "Jugador estrella y capitán, pero temido por tu agresividad y pasado urbano.",
+            "ENDING_PRO_FIGHTER_EARLY",
+            "Final Alternativo Temprano: Peleador Profesional (J4)",
+            "Un promotor de peleas clandestinas te ofrece dejar el fútbol tras el 4.º partido.",
             "", StatModifier(), "", StatModifier(),
-            "Idolatrado por la afición humilde, temido por los rivales dentro del campo."
+            "Decides abandonar el fútbol y dedicarte al mundo de las peleas profesionales. La cantera pierde un talento, pero el ring gana una estrella."
         });
 
-        // --- Nivel 2 (Finales Sorpresa): Hojas de la Rama Callejera ---
-        // Hoja Derecha-Izquierda: El Juguete Roto
+        // Final 3: HOSPITAL_DREAM_BAD (Trágico J6/J8) — pierde emboscada/pelea final
         root->right->left = new Node({
-            "ENDING_BROKEN_DREAM",
-            "Final 3: El Sueño Truncado",
-            "El club te expulsa por indisciplina y tus deudas te consumen.",
+            "ENDING_HOSPITAL_DREAM_BAD",
+            "Final Trágico: Hospital — Todo Fue un Sueño",
+            "Un golpe brutal en la cabeza te deja inconsciente.",
             "", StatModifier(), "", StatModifier(),
-            "Un talento desperdiciado que terminó como leyenda urbana de barrio."
+            "Despiertas en una cama de hospital sin poder sentir tus piernas. Los médicos te explican que todo lo vivido podría haber sido un sueño febril. El final más oscuro."
         });
 
-        // Hoja Derecha-Derecha: El Capo del Asfalto
+        // Final 4: PRO_FIGHTER_J8 (Alternativo J8) — gana pelea final con comb>=25
         root->right->right = new Node({
-            "ENDING_STREET_KINGPIN",
-            "Final 4: El Rey del Asfalto",
-            "Dominas las apuestas y combates clandestinos de la ciudad.",
+            "ENDING_PRO_FIGHTER_J8",
+            "Final Alternativo: Peleador Profesional (J8)",
+            "Tras completar las 8 jornadas, ganas la emboscada final y decides dedicarte al combate.",
             "", StatModifier(), "", StatModifier(),
-            "Cambiaste los tacos de fútbol por el control total de las apuestas nocturnas."
+            "Con una técnica de combate de élite, decides dedicar tu vida al combate profesional. Un camino distinto, pero igualmente glorioso."
         });
 
         current = root;
