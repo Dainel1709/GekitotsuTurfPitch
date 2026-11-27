@@ -82,15 +82,21 @@ func _init():
 	print("  -> Ajuste rápido +45 Disciplina + 4 Goles OK: %s (Delta: %+d)" % [gs.get_active_branch_name(), gs.get_balance_delta()])
 
 	# --------------------------------------------------------------------------
-	# 5. Instanciar MainGame.tscn y verificar BalanceLabel
+	# 5. Instanciar MainGame.tscn y TitleScreen.tscn y verificar BalanceLabel
 	# --------------------------------------------------------------------------
-	print("\n[5] Verificando MainGame.tscn y BalanceLabel...")
+	print("\n[5] Verificando MainGame.tscn, TitleScreen.tscn y BalanceLabel...")
+	var title_scene = load("res://scenes/TitleScreen.tscn")
+	assert(title_scene != null, "TitleScreen.tscn debe cargar")
+	var title_node = title_scene.instance()
+	root.add_child(title_node)
+	title_node.queue_free()
+
 	var main_scene = load("res://scenes/MainGame.tscn")
 	assert(main_scene != null, "MainGame.tscn debe cargar")
 	var main_node = main_scene.instance()
 	root.add_child(main_node)
-	assert(main_node.has_node("VBoxContainer/BalanceLabel"), "MainGame.tscn debe tener BalanceLabel")
-	var bal_lbl = main_node.get_node("VBoxContainer/BalanceLabel")
+	var bal_lbl = main_node.balance_label
+	assert(bal_lbl != null, "MainGame.tscn debe tener balance_label")
 	assert("Tendencia del Árbol:" in bal_lbl.text, "BalanceLabel debe mostrar la tendencia del árbol")
 	print("  -> MainGame BalanceLabel OK: %s" % bal_lbl.text)
 

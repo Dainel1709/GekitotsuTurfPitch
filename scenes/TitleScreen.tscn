@@ -1,60 +1,111 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=3 format=2]
 
 [ext_resource path="res://scripts/TitleScreen.gd" type="Script" id=1]
+
+[sub_resource type="StyleBoxFlat" id=1]
+bg_color = Color( 0.08, 0.1, 0.14, 0.94 )
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color( 0.2, 0.75, 0.95, 0.65 )
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="TitleScreen" type="Control"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource( 1 )
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 anchor_right = 1.0
 anchor_bottom = 1.0
-margin_left = 60.0
-margin_top = 60.0
-margin_right = -60.0
-margin_bottom = -60.0
+color = Color( 0.04, 0.05, 0.08, 1 )
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="CardPanel" type="PanelContainer" parent="CenterContainer"]
+margin_left = 172.0
+margin_top = 110.0
+margin_right = 852.0
+margin_bottom = 490.0
+rect_min_size = Vector2( 680, 0 )
+custom_styles/panel = SubResource( 1 )
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/CardPanel"]
+margin_left = 2.0
+margin_top = 2.0
+margin_right = 678.0
+margin_bottom = 378.0
+custom_constants/margin_right = 36
+custom_constants/margin_top = 32
+custom_constants/margin_left = 36
+custom_constants/margin_bottom = 32
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/CardPanel/MarginContainer"]
+margin_left = 36.0
+margin_top = 32.0
+margin_right = 640.0
+margin_bottom = 344.0
+custom_constants/separation = 18
 alignment = 1
 
-[node name="TitleLabel" type="Label" parent="VBoxContainer"]
-margin_left = 377.0
-margin_right = 527.0
-margin_bottom = 14.0
-size_flags_horizontal = 4
-size_flags_vertical = 0
+[node name="TitleLabel" type="Label" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+margin_right = 604.0
+margin_bottom = 18.0
+rect_min_size = Vector2( 0, 18 )
+custom_colors/font_color = Color( 1, 0.88, 0.25, 1 )
 text = "GEKITOTSU TURF PITCH"
 align = 1
 valign = 1
 
-[node name="Spacer1" type="Control" parent="VBoxContainer"]
-margin_top = 18.0
-margin_right = 904.0
-margin_bottom = 58.0
-rect_min_size = Vector2( 0, 40 )
-size_flags_vertical = 0
-
-[node name="IntroLabel" type="Label" parent="VBoxContainer"]
-margin_top = 62.0
-margin_right = 904.0
-margin_bottom = 110.0
-size_flags_horizontal = 5
-size_flags_vertical = 2
-text = "En un pequeño pueblo de Venezuela (Mérida/Chama), Jose Luis sueña con convertirse en el mejor futbolista del mundo. Dividido entre los partidos de liga de día y las peleas callejeras nocturnas para subsistir, este joven canterano deberá forjar su destino con disciplina deportiva o reputación en el asfalto. ¿Tienes el coraje para guiarle hasta la gloria?"
+[node name="SubtitleLabel" type="Label" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+margin_top = 36.0
+margin_right = 604.0
+margin_bottom = 50.0
+custom_colors/font_color = Color( 0.35, 0.88, 1, 1 )
+text = "Fútbol de Cantera de Día — Asfalto y Combate de Noche"
 align = 1
+valign = 1
+
+[node name="IntroLabel" type="Label" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+margin_top = 68.0
+margin_right = 604.0
+margin_bottom = 136.0
+rect_min_size = Vector2( 0, 68 )
+custom_colors/font_color = Color( 0.88, 0.91, 0.96, 1 )
+text = "Un balonazo fortuito en la calle te abre las puertas de una cantera juvenil por 8 jornadas decisivas. Forja tu camino en la cancha o en el callejón: cada decisión y estadística equilibra tu destino hacia la gloria profesional o un despertar inesperado."
+align = 1
+valign = 1
 autowrap = true
 
-[node name="Spacer2" type="Control" parent="VBoxContainer"]
-margin_top = 361.0
-margin_right = 904.0
-margin_bottom = 421.0
-rect_min_size = Vector2( 0, 60 )
-
-[node name="StartButton" type="Button" parent="VBoxContainer"]
-margin_left = 342.0
-margin_top = 425.0
-margin_right = 562.0
-margin_bottom = 480.0
-rect_min_size = Vector2( 220, 55 )
+[node name="StartButton" type="Button" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+margin_left = 142.0
+margin_top = 154.0
+margin_right = 462.0
+margin_bottom = 200.0
+rect_min_size = Vector2( 320, 46 )
 size_flags_horizontal = 4
-size_flags_vertical = 0
-text = "Iniciar Juego"
+text = "Iniciar Nueva Carrera"
+
+[node name="ContinueButton" type="Button" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+margin_left = 142.0
+margin_top = 218.0
+margin_right = 462.0
+margin_bottom = 264.0
+rect_min_size = Vector2( 320, 46 )
+size_flags_horizontal = 4
+text = "Continuar Carrera Guardada"
+
+[node name="AdminButton" type="Button" parent="CenterContainer/CardPanel/MarginContainer/VBoxContainer"]
+margin_left = 142.0
+margin_top = 282.0
+margin_right = 462.0
+margin_bottom = 328.0
+rect_min_size = Vector2( 320, 46 )
+size_flags_horizontal = 4
+text = "ADMIN: Árbol de Historia (F12)"
